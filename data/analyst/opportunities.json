@@ -13,16 +13,84 @@
       "created_at": "2026-11-22",
       "next_review": "2026-12-15",
       "companies": [
-        {"company_id": "NSE:JPL", "role": "context", "note": "Company-level signal: three fund houses newly held it in Oct-2026."},
-        {"company_id": "NSE:BHARTIHEXA", "role": "context", "note": "Company-level signal: three fund houses added or newly held it in Oct-2026."}
+        {
+          "company_id": "NSE:JPL",
+          "role": "context",
+          "note": "Company-level signal: three fund houses newly held it in Oct-2026."
+        },
+        {
+          "company_id": "NSE:BHARTIHEXA",
+          "role": "context",
+          "note": "Company-level signal: three fund houses added or newly held it in Oct-2026."
+        }
       ],
       "evidence": [
-        {"signal_id": "sig_43079f2defd720d6", "role": "supporting", "materiality": 3, "explanation": "Fund-house net breadth in the sector was +67% in the latest monthly files."},
-        {"signal_id": "sig_2791eff619bea14d", "role": "supporting", "materiality": 3, "explanation": "FPIs were net buyers over the last 3 months, independently of domestic funds."},
-        {"signal_id": "sig_ed32560ae8bfa076", "role": "supporting", "materiality": 2, "explanation": "Institutional holding rose at most of the sector's listed companies in the latest quarter."},
-        {"signal_id": "sig_b4837846eebb43bf", "role": "supporting", "materiality": 2, "explanation": "Company-level: several fund houses moved the same way."},
-        {"signal_id": "sig_ee4b419858b7f724", "role": "supporting", "materiality": 2, "explanation": "Company-level: several fund houses moved the same way."},
-        {"signal_id": "sig_ba4b2e0362a4bb64", "role": "contradicting", "materiality": 2, "explanation": "Bank credit to the sector fell year on year. Open question: deleveraging, lower capex, or reduced lender appetite."}
+        {
+          "signal_id": "sig_43079f2defd720d6",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "Fund-house net breadth in the sector was +67% in the latest monthly files."
+        },
+        {
+          "signal_id": "sig_2791eff619bea14d",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "FPIs were net buyers over the last 3 months, independently of domestic funds."
+        },
+        {
+          "signal_id": "sig_ed32560ae8bfa076",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Institutional holding rose at most of the sector's listed companies in the latest quarter."
+        },
+        {
+          "signal_id": "sig_b4837846eebb43bf",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Company-level: several fund houses moved the same way."
+        },
+        {
+          "signal_id": "sig_ee4b419858b7f724",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Company-level: several fund houses moved the same way."
+        },
+        {
+          "signal_id": "sig_ba4b2e0362a4bb64",
+          "role": "contradicting",
+          "materiality": 2,
+          "explanation": "Bank credit to the sector fell year on year. Open question: deleveraging, lower capex, or reduced lender appetite."
+        },
+        {
+          "signal_id": "sig_68815cdf5f04da23",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "Aggregate reported revenue of listed telecom companies grew year on year in the latest quarter, consistent with improving sector economics. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_ca5a7878fa7b3806",
+          "role": "contextual",
+          "materiality": 2,
+          "explanation": "Telecom equipment maker reported strong revenue growth; equipment demand is context for operator capex, not direct evidence on operator economics. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_723812995794ec84",
+          "role": "contextual",
+          "materiality": 2,
+          "explanation": "Optical fibre and cable maker reported strong revenue growth; context on network build-out demand. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_5fc1715e890dad4d",
+          "role": "contextual",
+          "materiality": 2,
+          "explanation": "Telecom equipment maker reported revenue growth with a wider margin; context on network equipment demand. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_b18d677d32f26c53",
+          "role": "contextual",
+          "materiality": 1,
+          "explanation": "State-owned telecom equipment maker reported lower revenue; shows equipment demand is uneven across vendors. Linked in the Sprint 2 data refresh; pending analyst review."
+        }
       ],
       "confirmation_conditions": [
         "Fund-house net breadth in telecom stays positive in the next monthly portfolio files.",
@@ -32,7 +100,11 @@
         "Fund-house net breadth in telecom turns negative (40% or more net trims/exits) in the next monthly files.",
         "FPI 3-month net flow turns to an outflow of 1.5% or more of FPI holdings."
       ],
-      "open_questions": ["Tariff and ARPU trend", "Capex intensity after the 5G build-out", "Why bank credit to the sector is contracting"],
+      "open_questions": [
+        "Tariff and ARPU trend",
+        "Capex intensity after the 5G build-out",
+        "Why bank credit to the sector is contracting"
+      ],
       "scenarios": []
     },
     {
@@ -47,15 +119,84 @@
       "created_at": "2026-11-22",
       "next_review": "2026-12-15",
       "companies": [
-        {"company_id": "NSE:CLEANMAX", "role": "context", "note": "Company-level signal: institutional holding up 7.42 pp in the quarter to Sep-2026."},
-        {"company_id": "NSE:VEDPOWER", "role": "context", "note": "Company-level signal: institutional holding down 4.01 pp in the quarter to Sep-2026."}
+        {
+          "company_id": "NSE:CLEANMAX",
+          "role": "context",
+          "note": "Company-level signal: institutional holding up 7.42 pp in the quarter to Sep-2026."
+        },
+        {
+          "company_id": "NSE:VEDPOWER",
+          "role": "context",
+          "note": "Company-level signal: institutional holding down 4.01 pp in the quarter to Sep-2026."
+        }
       ],
       "evidence": [
-        {"signal_id": "sig_b8b47a3746f44427", "role": "supporting", "materiality": 3, "explanation": "India Ratings: 27 upgrades and no downgrades among power borrowers in 90 days."},
-        {"signal_id": "sig_418653c165d99657", "role": "supporting", "materiality": 3, "explanation": "ICRA, separately: 6 upgrades and no downgrades among power borrowers in 90 days."},
-        {"signal_id": "sig_0adbfaaf035c9632", "role": "supporting", "materiality": 1, "explanation": "Company-level: institutional holding rose sharply at one listed power company."},
-        {"signal_id": "sig_e7485b6ed91b1b6d", "role": "contradicting", "materiality": 2, "explanation": "FPIs were net sellers of power stocks over the last 3 months."},
-        {"signal_id": "sig_9a56aa84f8b5b094", "role": "contextual", "materiality": 1, "explanation": "Company-level: institutional holding fell at another listed power company."}
+        {
+          "signal_id": "sig_b8b47a3746f44427",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "India Ratings: 27 upgrades and no downgrades among power borrowers in 90 days."
+        },
+        {
+          "signal_id": "sig_418653c165d99657",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "ICRA, separately: 6 upgrades and no downgrades among power borrowers in 90 days."
+        },
+        {
+          "signal_id": "sig_0adbfaaf035c9632",
+          "role": "supporting",
+          "materiality": 1,
+          "explanation": "Company-level: institutional holding rose sharply at one listed power company."
+        },
+        {
+          "signal_id": "sig_e7485b6ed91b1b6d",
+          "role": "contradicting",
+          "materiality": 2,
+          "explanation": "FPIs were net sellers of power stocks over the last 3 months."
+        },
+        {
+          "signal_id": "sig_9a56aa84f8b5b094",
+          "role": "contextual",
+          "materiality": 1,
+          "explanation": "Company-level: institutional holding fell at another listed power company."
+        },
+        {
+          "signal_id": "sig_90af871655fd50ce",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "Official electricity generation index rose over the latest three months versus a year earlier, supporting demand for generators. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_5fef1c87fbb7fd0a",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "Aggregate reported revenue of listed power companies grew year on year in the latest quarter. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_b2501548ed9e9118",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "The largest state-owned generator reported higher revenue with a steady margin. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_701ee10af16791da",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "State-owned hydro generator reported higher revenue with a wider margin. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_9cda8a540bae170e",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Renewable generation arm reported strong revenue growth with a wider margin. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_5e78f594c8cda728",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Large private thermal generator reported higher revenue with a wider margin. Linked in the Sprint 2 data refresh; pending analyst review."
+        }
       ],
       "confirmation_conditions": [
         "Upgrades keep exceeding downgrades for power borrowers at India Ratings and ICRA in the next 90-day window.",
@@ -65,7 +206,10 @@
         "Downgrades exceed upgrades for power borrowers at either agency over a 90-day window.",
         "Defaults appear among rated power borrowers."
       ],
-      "open_questions": ["Is the upgrade wave concentrated in renewables or distribution?", "Why are FPIs net sellers while ratings improve?"],
+      "open_questions": [
+        "Is the upgrade wave concentrated in renewables or distribution?",
+        "Why are FPIs net sellers while ratings improve?"
+      ],
       "scenarios": []
     },
     {
@@ -80,15 +224,66 @@
       "created_at": "2026-11-22",
       "next_review": "2026-12-15",
       "companies": [
-        {"company_id": "NSE:PERSISTENT", "role": "context", "note": "Company-level signal: three fund houses added or newly held it in Oct-2026."},
-        {"company_id": "NSE:KPITTECH", "role": "context", "note": "Company-level signal: institutional holding down 4.25 pp in the quarter to Sep-2026."}
+        {
+          "company_id": "NSE:PERSISTENT",
+          "role": "context",
+          "note": "Company-level signal: three fund houses added or newly held it in Oct-2026."
+        },
+        {
+          "company_id": "NSE:KPITTECH",
+          "role": "context",
+          "note": "Company-level signal: institutional holding down 4.25 pp in the quarter to Sep-2026."
+        }
       ],
       "evidence": [
-        {"signal_id": "sig_b2adbecd5cb285bf", "role": "supporting", "materiality": 3, "explanation": "FPIs were net buyers of IT stocks over the last 3 months."},
-        {"signal_id": "sig_05c36d0f016ef4d2", "role": "supporting", "materiality": 2, "explanation": "Institutional holding rose at most listed IT companies in the latest quarter."},
-        {"signal_id": "sig_c5d6745f235026f9", "role": "supporting", "materiality": 1, "explanation": "Company-level: several fund houses moved the same way."},
-        {"signal_id": "sig_acd6030a7ae3fad2", "role": "contradicting", "materiality": 1, "explanation": "Company-level: institutional holding fell at one listed IT company."},
-        {"signal_id": "sig_23a22fa44bfb5e14", "role": "contextual", "materiality": 1, "explanation": "Bank credit to computer software grew quickly; small base, and not a demand measure."}
+        {
+          "signal_id": "sig_b2adbecd5cb285bf",
+          "role": "supporting",
+          "materiality": 3,
+          "explanation": "FPIs were net buyers of IT stocks over the last 3 months."
+        },
+        {
+          "signal_id": "sig_05c36d0f016ef4d2",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Institutional holding rose at most listed IT companies in the latest quarter."
+        },
+        {
+          "signal_id": "sig_c5d6745f235026f9",
+          "role": "supporting",
+          "materiality": 1,
+          "explanation": "Company-level: several fund houses moved the same way."
+        },
+        {
+          "signal_id": "sig_acd6030a7ae3fad2",
+          "role": "contradicting",
+          "materiality": 1,
+          "explanation": "Company-level: institutional holding fell at one listed IT company."
+        },
+        {
+          "signal_id": "sig_23a22fa44bfb5e14",
+          "role": "contextual",
+          "materiality": 1,
+          "explanation": "Bank credit to computer software grew quickly; small base, and not a demand measure."
+        },
+        {
+          "signal_id": "sig_6975a2e57cfa49fc",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Mid-sized IT services company reported strong revenue growth with a wider margin; reported figures may include acquisitions. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_e44cde3a4945bd4b",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Engineering services company reported revenue growth with a wider margin. Linked in the Sprint 2 data refresh; pending analyst review."
+        },
+        {
+          "signal_id": "sig_dc4b6d764996e150",
+          "role": "supporting",
+          "materiality": 2,
+          "explanation": "Engineering and product development services company reported revenue growth with a steady margin. Linked in the Sprint 2 data refresh; pending analyst review."
+        }
       ],
       "confirmation_conditions": [
         "FPI 3-month net flow into IT stays positive in the next NSDL fortnights.",
@@ -98,19 +293,65 @@
         "FPI 3-month net flow into IT turns to an outflow of 1.5% or more of FPI holdings.",
         "Institutional breadth in IT falls to 35% or less."
       ],
-      "open_questions": ["Revenue growth and deal wins (not ingested)", "Margin trend (not ingested)"],
+      "open_questions": [
+        "Revenue growth and deal wins (not ingested)",
+        "Margin trend (not ingested)"
+      ],
       "scenarios": []
     }
   ],
   "thesis_updates": [
-    {"update_id": "tu_opp_telecom_capital_broadening_001", "opportunity_id": "opp_telecom_capital_broadening", "update_date": "2026-11-22", "previous_stage": null, "new_stage": "discovery",
-     "summary": "Starter hypothesis recorded from detected signals (fund-house breadth, FPI flow, institutional breadth). Not yet reviewed by an analyst.",
-     "supporting_evidence": ["sig_43079f2defd720d6", "sig_2791eff619bea14d", "sig_ed32560ae8bfa076"], "opposing_evidence": ["sig_ba4b2e0362a4bb64"], "assumptions_changed": null, "author": "Sprint 1 seed (pending analyst review)"},
-    {"update_id": "tu_opp_power_credit_quality_001", "opportunity_id": "opp_power_credit_quality", "update_date": "2026-11-22", "previous_stage": null, "new_stage": "discovery",
-     "summary": "Starter hypothesis recorded from detected signals (India Ratings and ICRA rating balance). Not yet reviewed by an analyst.",
-     "supporting_evidence": ["sig_b8b47a3746f44427", "sig_418653c165d99657"], "opposing_evidence": ["sig_e7485b6ed91b1b6d"], "assumptions_changed": null, "author": "Sprint 1 seed (pending analyst review)"},
-    {"update_id": "tu_opp_it_institutional_return_001", "opportunity_id": "opp_it_institutional_return", "update_date": "2026-11-22", "previous_stage": null, "new_stage": "discovery",
-     "summary": "Starter hypothesis recorded from detected signals (FPI flow, institutional breadth). Not yet reviewed by an analyst.",
-     "supporting_evidence": ["sig_b2adbecd5cb285bf", "sig_05c36d0f016ef4d2"], "opposing_evidence": ["sig_acd6030a7ae3fad2"], "assumptions_changed": null, "author": "Sprint 1 seed (pending analyst review)"}
+    {
+      "update_id": "tu_opp_telecom_capital_broadening_001",
+      "opportunity_id": "opp_telecom_capital_broadening",
+      "update_date": "2026-11-22",
+      "previous_stage": null,
+      "new_stage": "discovery",
+      "summary": "Starter hypothesis recorded from detected signals (fund-house breadth, FPI flow, institutional breadth). Not yet reviewed by an analyst.",
+      "supporting_evidence": [
+        "sig_43079f2defd720d6",
+        "sig_2791eff619bea14d",
+        "sig_ed32560ae8bfa076"
+      ],
+      "opposing_evidence": [
+        "sig_ba4b2e0362a4bb64"
+      ],
+      "assumptions_changed": null,
+      "author": "Sprint 1 seed (pending analyst review)"
+    },
+    {
+      "update_id": "tu_opp_power_credit_quality_001",
+      "opportunity_id": "opp_power_credit_quality",
+      "update_date": "2026-11-22",
+      "previous_stage": null,
+      "new_stage": "discovery",
+      "summary": "Starter hypothesis recorded from detected signals (India Ratings and ICRA rating balance). Not yet reviewed by an analyst.",
+      "supporting_evidence": [
+        "sig_b8b47a3746f44427",
+        "sig_418653c165d99657"
+      ],
+      "opposing_evidence": [
+        "sig_e7485b6ed91b1b6d"
+      ],
+      "assumptions_changed": null,
+      "author": "Sprint 1 seed (pending analyst review)"
+    },
+    {
+      "update_id": "tu_opp_it_institutional_return_001",
+      "opportunity_id": "opp_it_institutional_return",
+      "update_date": "2026-11-22",
+      "previous_stage": null,
+      "new_stage": "discovery",
+      "summary": "Starter hypothesis recorded from detected signals (FPI flow, institutional breadth). Not yet reviewed by an analyst.",
+      "supporting_evidence": [
+        "sig_b2adbecd5cb285bf",
+        "sig_05c36d0f016ef4d2"
+      ],
+      "opposing_evidence": [
+        "sig_acd6030a7ae3fad2"
+      ],
+      "assumptions_changed": null,
+      "author": "Sprint 1 seed (pending analyst review)"
+    }
   ]
 }
