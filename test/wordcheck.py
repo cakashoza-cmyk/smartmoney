@@ -13,7 +13,11 @@ ALLOW = ["not a recommendation to buy, sell or hold any security", "Not a recomm
          "not investment advice", "SEBI-registered Investment Adviser", "SEBI-registered investment adviser", "is not a recommendation", "High attention is not a recommendation",
          "'Capital attention' replaces 'opportunity' and 'attractiveness'", "replaces 'opportunity' and 'attractiveness'",
          "renamed from \"Investment Attractiveness\" and \"Opportunity Radar\"", "auditor rejects any conclusion without a traceable evidence row or with recommendation language",
-         "with recommendation language", "recommendation language", "recommendation-word", "Recommendation-language", "recommendation words"]
+         "with recommendation language", "recommendation language", "recommendation-word", "Recommendation-language", "recommendation words",
+         # 2.0 product terms (Akash-approved spec t94u): screen names for research hypotheses, never used about a security
+         "Opportunity Discovery", "Opportunity Dossier"]
+# code identifiers / schema names for the 2.0 hypothesis tables (opportunity_id, O.opportunities, #/opportunities, 'opportunities', opportunities.json)
+CODE_IDS = re.compile(r"\bopportunit\w*_\w*|[./#]opportunities\b|['\"]opportunities['\"]|\bopportunities\.json\b|[{,]\s*opportunities(?=\s*:)|`[^`\n]*`")
 
 
 FUND_NAME = re.compile(r"(?:\b[A-Z][\w.&'()-]* +)*\bOpportunit\w*(?: +(?:[A-Z][\w.&'()-]*|-|&|of|and))*? +"
@@ -26,6 +30,7 @@ VEHICLE = re.compile(r"\b(?:Fund|Funds|AIF|Aif|Scheme|Trust|LLP|Llp|Ltd|Limited|
 def scan(text):
     for a in ALLOW:
         text = text.replace(a, " ")
+    text = CODE_IDS.sub(" ", text)
     # proper names of disclosed funds (e.g. "XYZ Opportunities Fund", "PI Opportunities AIF") are data, not our wording
     text = re.sub(r"\bself_\w+", " ", text)
     text = re.sub(r"\bOPPORTUNIT[A-Z]*\b", " ", text)  # all-caps = holder name exactly as filed with the exchange
@@ -41,10 +46,23 @@ def scan(text):
 
 
 def texts():
-    for f in ["index.html", "assets/app.js", "README.md", "METHODOLOGY.md"]:
+    for f in ["index.html", "assets/app.js", "assets/v2.js", "assets/valuation.js", "README.md", "METHODOLOGY.md"] + sorted(str(Path(x).relative_to(ROOT)) for x in glob.glob(str(ROOT / "docs/*.md"))):
         p = ROOT / f
         if p.exists():
             yield f, p.read_text(encoding="utf-8")
+    for f in ("data/analyst/opportunities.json", "data/analyst/valuations.json"):
+        p = ROOT / f
+        if p.exists():
+            yield f, p.read_text(encoding="utf-8")
+    v2 = ROOT / "data/export/v2"
+    for name in ("signals.json", "opportunities.json", "meta_v2.json"):
+        p = v2 / name
+        if p.exists():
+            d = json.loads(p.read_text())
+            if name == "signals.json":  # our own titles/descriptions and rule texts (entity names are filed data)
+                yield "v2/" + name, json.dumps([[x.get("title"), x.get("description")] for x in d["signals"]] + [r["text"] for r in d["rules"].values()], ensure_ascii=False)
+            else:
+                yield "v2/" + name, json.dumps(_strip_quoted(d), ensure_ascii=False)
     for p in glob.glob(str(ROOT / "shots/rendered_*.txt")):
         yield Path(p).name, Path(p).read_text(encoding="utf-8")
     exp = ROOT / "data/export"
