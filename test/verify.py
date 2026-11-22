@@ -56,6 +56,20 @@ async def run(b, label, vp, mobile, errs, views):
     print(f"{label} valuation lab: {out[:220]!r}")
     await pg.screenshot(path=f"{OUT}/{label}_valuation_calc.png", full_page=True)
     alltxt.append("=== valuation calc\n" + out)
+    # Valuation Lab company selector: Enter key, company names, picked symbols and unknown input
+    for typed, expect, how in (("NTPC", "NTPC Ltd.", "enter"), ("Bharti Airtel", "Bharti Airtel", "enter"), ("coforge", "Coforge", "button"),
+                               ("Reliance Industries Ltd.", "Reliance Industries", "button"), ("M&M", "Mahindra & Mahindra", "change"), ("ZZZNOTACO", "insufficient data", "enter")):
+        await pg.goto(BASE + "#/valuation", wait_until="networkidle"); await pg.wait_for_timeout(500)
+        await pg.fill("#v_co", typed)
+        if how == "enter": await pg.press("#v_co", "Enter")
+        elif how == "button": await pg.click("button:has-text('Open')")
+        else: await pg.dispatch_event("#v_co", "change")
+        await pg.wait_for_timeout(1500)
+        rep = await pg.evaluate("(document.querySelector('.card.reported')||{}).innerText||''")
+        ok = expect in rep and (expect == "insufficient data" or "trailing 4 quarters" in rep.lower())
+        if not ok:
+            errs.append(f"{label}: valuation selector '{typed}' ({how}) did not load: {rep[:200]!r}")
+        print(f"{label} valuation selector {typed!r} ({how}): {'ok' if ok else 'FAIL'}")
     # search
     await pg.fill("#q", "hdfc"); await pg.wait_for_timeout(800)
     n = await pg.evaluate("document.querySelectorAll('#qres a').length"); print(f"{label} search 'hdfc': {n} hits")
