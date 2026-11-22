@@ -6,7 +6,8 @@
    "inst_breadth_qoq": 20,
    "deals_net_inst_90d": 15,
    "new_independent_holders": 10,
-   "bank_credit_fytd": 10
+   "bank_credit_fytd": 10,
+   "mf_amc_net_breadth_1m": 15
   },
   "3-10y": {
    "fpi_flow_persistence_36m": 20,

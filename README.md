@@ -61,7 +61,13 @@ The live status of each source is on the **Sources & method** page.
 | SEBI AIF statistics | Commitments, raised and invested by category, plus sector table | working |
 | RBI sectoral deployment of bank credit (SIBC) | Outstanding credit by industry code | working |
 | AMFI monthly | MF net inflows by category | working |
-| CRISIL rating actions | Upgrades, downgrades, defaults, non-cooperation | working (other agencies not yet) |
+| CRISIL rating actions | Upgrades, downgrades, defaults, non-cooperation | working |
+| India Ratings rating-action list | Headline action + the agency's industry field | working (weekly) |
+| CARE (CareEdge) press releases | Rating-action column + CARE's own industry classification, from each PDF | working (weekly; the public feed holds about one month) |
+| ICRA rating rationales | Upgrades, downgrades, outlook/watch changes, defaults (PDF read only for these) | working (weekly; sector keyword-classified) |
+| AMC monthly scheme portfolios: SBI, Nippon India, Aditya Birla Sun Life, DSP, PPFAS | Every scheme's listed Indian equity holdings, month-end | working (monthly, 10th-12th) |
+| AMC monthly portfolios: HDFC, ICICI Prudential, Kotak, Tata, Edelweiss | n/a | **blocked** (403 / connection refused / hCaptcha; not bypassed) |
+| AMC monthly portfolios: Axis, UTI, Mirae Asset | n/a | not built (no file links on the public page, or per-scheme paged listing) |
 | PIB Cabinet releases | Approved outlays (announcements) | working (RSS comes in Hindi to some networks; parsed both ways) |
 | World Bank WDI | Structural indicators, FDI, peers | working |
 | FRED | US rates, real yield, dollar, Brent, INR | partial (intermittent timeouts) |
@@ -69,7 +75,7 @@ The live status of each source is on the **Sources & method** page.
 | DPIIT FDI factsheets | Sector FDI | **blocked** (site refuses automated access; not bypassed) |
 | IMF DataMapper, BSE deals API | n/a | **blocked** |
 | Tracxn, Venture Intelligence, VCCEdge, MCA21 | PE/VC rounds, unlisted companies | **needs paid credentials** (connector stubs in `scripts/connectors_paid.py`) |
-| SEBI PMS, AMC monthly portfolios, IVCA/EY, SWF disclosures | n/a | not built yet |
+| SEBI PMS, IVCA/EY, SWF disclosures | n/a | not built yet |
 
 ## Scores
 
@@ -86,7 +92,7 @@ There are five scores. Each one is computed separately for each of the three hor
 - ROIC, management quality, track record, competitive intensity and expected returns.
 
 **Method by horizon:**
-- **1-3y:** FPI flow over the last 6 fortnights (% of holdings), median institutional stake change QoQ, breadth, non-trading institutional net deals over 90 days, new independent holders above 1%, and bank credit FYTD.
+- **1-3y:** FPI flow over the last 6 fortnights (% of holdings), median institutional stake change QoQ, breadth, non-trading institutional net deals over 90 days, new independent holders above 1%, bank credit FYTD, and fund-house breadth (share of fund-house x stock moves in the sector that were adds or new positions rather than trims or exits, latest month, active schemes only).
 - **3-10y:** FPI persistence over 36 months, FPI flow over 12 months, institutional stake change YoY, bank credit YoY, AIF sector investment growth, and corporate capital events over 180 days.
 - **10-20y:** no forecasts. Eight authored SCENARIOS, each with confirm and invalidate conditions. Each scenario is checked against World Bank structural series, credit, AIF, FPI since 2017 and Cabinet approvals.
 
@@ -94,7 +100,8 @@ There are five scores. Each one is computed separately for each of the three hor
 
 A company counts when several distinct **parent groups** are adding to it, through either of these routes:
 - the group became a new holder above 1% in the latest quarter (shareholding patterns), or
-- the group was a net buyer in bulk/block deals over 90 days.
+- the group was a net buyer in bulk/block deals over 90 days, or
+- (fund houses) the group opened a new position in its active schemes in the latest monthly portfolio file.
 
 What is excluded or collapsed:
 - Fund families collapse to their parent when a name rule exists (for example, every SBI scheme counts as SBI Funds Management). Foreign funds with no rule yet count as their own group, so two unmapped funds of one family could still be counted twice; the rule list grows over time.
@@ -136,3 +143,17 @@ What is excluded or collapsed:
 - **Sector history before Apr 2022:** NSDL used about 40 legacy sectors, which are mapped by name to today's sectors. This mapping is approximate.
 - **Global data:** FRED and World Bank only. There is no tariff or trade-policy feed yet (WTO and UNCTAD are planned).
 - **NSE access from cloud IPs:** NSE may block GitHub Actions IP ranges. If it does, the affected sources are flagged stale and the last good data stays visible.
+
+## Fund houses (AMC monthly portfolio files)
+
+- Each fund house publishes every scheme's month-end holdings (SEBI requirement, by the 10th). Files are downloaded from the fund house's own site; the scheduler runs on the 10th-12th and skips files already loaded.
+- Only listed Indian equity rows (ISIN `INE...01...`) are kept. Holdings are stored in `ownership` with `holder_category='mf_portfolio'`, with quantity, market value and % of scheme NAV.
+- Every scheme is parented to the fund house that published the file (never by a name rule), so all schemes of one house count once.
+- Index funds and ETFs are flagged **passive**, arbitrage funds **arbitrage**. Both are stored but left out of adds/exits, convergence and the 1-3y component.
+- Month-on-month: shares held by a house's active schemes are summed per stock. new = not held last month; exit = no longer held; add / trim = shares up / down 10% or more; smaller changes are 'held' (inflows move every holding a little). Splits and bonuses are detected from the files (share count up, price down) and the earlier quantity is adjusted.
+- Each change is written to `transactions` (`txn_id` `mff_...`, label ESTIMATED VALUE: the quantity change is a fact from two files, the rupee value is change x month-end price).
+- Sector for stocks outside the Nifty 500 = the sector most Nifty 500 stocks with the same AMC industry label belong to.
+
+## Rating actions (four agencies)
+
+CRISIL, ICRA, CARE and India Ratings are separate sources and are never summed: they rate different issuers and publish in different forms. The Credit page shows upgrades, downgrades, defaults and outlook/watch changes by sector for each agency. The 1-3y industry-evidence score keeps using CRISIL only, because it is the one source with the full 12-month action history including reaffirmations.
