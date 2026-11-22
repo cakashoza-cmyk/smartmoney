@@ -67,13 +67,13 @@ ROUTES.opportunities = async (arg) => {
   ${O.analyst_file_errors.length ? `<p class="neg">Analyst file problems: ${O.analyst_file_errors.map(esc).join('; ')}</p>` : ''}</div>
   <div class="card noprint flt">${opt('i', [...new Set(O.opportunities.map(o => o.industry_id))], 'Industry', ind)}${opt('h', O.horizons, 'Horizon')}${opt('s', O.stages.concat(O.end_stages), 'Stage', s => STG[s])}
    ${opt('c', ['0.17', '0.33', '0.5'], 'Evidence coverage ≥', v => Math.round(v * 100) + '%')}${opt('e', ['contra', 'nocontra'], 'Opposing evidence', v => v === 'contra' ? 'has opposing evidence' : 'none linked')}
-   <span class="muted small">Structural demand and valuation filters need data not ingested yet.</span><button class="small" onclick="store.set('oppf',{});route()">Reset</button></div>
+   <button class="small" onclick="store.set('oppf',{});route()">Reset</button></div>
   ${os.map(oppCard).join('') || '<div class="card na">No hypothesis matches these filters.</div>'}`);
 };
 window.setOppf = (k, v) => { const f = store.get('oppf', {}); f[k] = v; store.set('oppf', f); route(); };
 
 async function dossier(id) {
-  const [O, Vd] = await Promise.all([J('v2/opportunities.json'), J('v2/valuation.json')]);
+  const [O, Vd, Fd, Id] = await Promise.all([J('v2/opportunities.json'), J('v2/valuation.json'), J('v2/fundamentals.json').catch(() => null), J('v2/industry.json').catch(() => null)]);
   const o = O.opportunities.find(x => x.opportunity_id === id);
   if (!o) return page(`<div class="card"><h2>Hypothesis not found</h2><p><a href="#/opportunities">Back to Opportunity Discovery</a></p></div>`);
   const sec = await J('sectors.json').then(s => s.sectors.find(x => x.id === o.industry_id)).catch(() => null);
@@ -97,7 +97,7 @@ async function dossier(id) {
     <tr><td>Fund-house net breadth, latest month</td><td class="n">${pc(m.mf_amc_net_breadth_1m, 0)}</td></tr><tr><td>Institutional breadth, latest quarter</td><td class="n">${isNum(m.inst_breadth_qoq) ? m.inst_breadth_qoq.toFixed(0) + '%' : NA}</td></tr>
     <tr><td>Bank credit, YoY</td><td class="n">${pc(m.bank_credit_yoy)}</td></tr><tr><td>Sector index P/E (${esc((sec.pe || {}).name || '')}), 10-year percentile</td><td class="n">${isNum((sec.pe || {}).pe) ? sec.pe.pe + ' (' + sec.pe.pctl_10y + ')' : NA}</td></tr></table>
     <div class="src">${lab('VERIFIED FACT')} from the v1 sector build · <a href="#/sectors/${esc(o.industry_id)}">full sector page</a></div>` : NA}</div>
-   <div class="card"><h3>Industry economics, competition, technology</h3>${nd('capacity, margins, market share and technology data are not ingested in Sprint 1')}</div>
+   <div class="card"><h3>Industry economics, production and trade</h3>${indCard(o.industry_id, Fd, Id)}</div>
   </div>
   <div class="g2">
    <div class="card"><h3>Company universe (analyst-linked)</h3>${o.companies.length ? `<table>${o.companies.map(c => `<tr><td>${coLink(c.company_id, c.name)}</td><td><span class="chip">${esc(c.role.replace(/_/g, ' '))}</span></td><td class="small">${esc(c.note || '')}</td><td><a href="#/valuation/${esc(c.company_id.split(':').pop())}">Valuation Lab</a></td></tr>`).join('')}</table>` : NA}</div>
@@ -109,7 +109,60 @@ async function dossier(id) {
   <div class="card"><h3>Invalidation conditions</h3><ul>${(o.detail.invalidation_conditions || []).map(c => `<li>${esc(c)}</li>`).join('') || '<li class="na">none recorded</li>'}</ul></div></div>
   <div class="card"><h3>New related signals not yet reviewed (120 days)</h3>${tbl([{ h: 'Observed', v: r => r.observed_at }, { h: 'Signal', v: r => r.title }, { h: 'Direction', v: r => r.direction, f: r => dir(r.direction) }, { h: 'Source', v: r => r.source_id, f: r => srcId(r.source_id) }], o.related_unlinked, { empty: 'none: every recent signal for this industry and its companies is already linked' })}</div>
   <div class="card"><h3>Research history (append-only)</h3>${historyT(o.history)}</div>
-  <div class="card"><h3>Historical background · global developments</h3>${nd('not ingested in Sprint 1 (planned: global radar, capacity and trade data)')}</div>`);
+  <div class="card"><h3>Global developments (Global Radar)</h3>${globCard(o.industry_id, Id)}</div>`);
+}
+function indCard(ind, Fd, Id) {
+  const a = Fd && Fd.sectors ? Fd.sectors[ind] : null, x = Id && Id.sectors ? Id.sectors[ind] : null;
+  const rows = [];
+  rows.push(`<tr><td>Listed companies' revenue, latest quarter YoY</td><td class="n">${a ? fx(a.revenue_yoy_pct, 1, '%') + ` <span class="small muted">(${a.companies} cos, ${esc(a.quarter || '')})</span>` : NA}</td></tr>`);
+  rows.push(`<tr><td>Aggregate EBITDA margin (change YoY)</td><td class="n">${a && isNum(a.ebitda_margin_pct) ? a.ebitda_margin_pct + '% (' + (a.ebitda_margin_change_pp > 0 ? '+' : '') + a.ebitda_margin_change_pp + ' pp)' : NA}</td></tr>`);
+  const iip = x && x.iip ? x.iip : [];
+  iip.forEach(i => { const l = i.yoy[i.yoy.length - 1]; rows.push(`<tr><td>IIP: ${esc(i.label.split(' | ').pop())}</td><td class="n">${l ? fx(l[1], 1, '%') + ' <span class="small muted">YoY ' + esc(l[0].slice(0, 7)) + '</span>' : NA} ${i.url ? srcA(i.url, 'MoSPI') : ''}</td></tr>`); });
+  if (!iip.length) rows.push(`<tr><td>Industrial production (IIP)</td><td>${NA} <span class="small muted">no IIP industry maps to this sector</span></td></tr>`);
+  const t = x && x.trade ? x.trade.years : [];
+  const ly = t[t.length - 1], py = t[t.length - 2];
+  rows.push(`<tr><td>Merchandise exports / imports (${ly ? 'FY to ' + esc(ly.fy_end.slice(0, 4)) : ''})</td><td class="n">${ly ? 'US$ ' + inr(ly.exports_usd_mn) + ' mn / US$ ' + inr(ly.imports_usd_mn) + ' mn' : NA + ' <span class="small muted">no HS chapter maps to this sector</span>'}</td></tr>`);
+  if (ly) rows.push(`<tr><td>Import share of trade (previous year)</td><td class="n">${fx(ly.import_share_pct, 1, '%')} (${py ? fx(py.import_share_pct, 1, '%') : NA})</td></tr>`);
+  return `<table>${rows.join('')}</table><div class="src">${lab('VERIFIED FACT')} NSE XBRL results, MoSPI IIP, Ministry of Commerce TradeStat · <a href="#/industry/${esc(ind)}">industry data page</a></div>`;
+}
+function globCard(ind, Id) {
+  const cs = Id && Id.commodities ? Id.commodities.filter(c => c.sectors.some(s => s.industry_id === ind)) : [];
+  if (!cs.length) return '<p class="na">insufficient data: no tracked commodity is mapped to this sector (see the Global page for rates, the dollar and Brent).</p>';
+  return `<table>${cs.map(c => { const v = c.values, l = v[v.length - 1], b = v[v.length - 4]; const ch = l && b && b[1] ? 100 * (l[1] / b[1] - 1) : null;
+    return `<tr><td>${esc(c.name)}</td><td class="n">${l ? inr(l[1], 2) + ' ' + esc(c.unit) : NA} <span class="small muted">${l ? esc(l[0].slice(0, 7)) : ''}</span></td><td class="n">${fx(ch, 1, '%')} <span class="small muted">3m</span></td><td class="small">${esc(c.sectors.find(s => s.industry_id === ind).why)}</td><td>${srcA(c.url, 'FRED')}</td></tr>`; }).join('')}</table>
+  <div class="src">Commodity-to-sector links are a fixed, rule-based table (first-order exposure only).</div>`;
+}
+
+/* ---------------- Industry data (Sprint 2) ---------------- */
+ROUTES.industry = async (ind) => {
+  const [Id, Fd] = await Promise.all([J('v2/industry.json'), J('v2/fundamentals.json')]);
+  const secs = Object.keys(Id.sectors).sort();
+  const st = Object.entries(Id.source_status || {});
+  const x = ind ? Id.sectors[ind] : null;
+  const ob = Id.obicus || {};
+  const last = a => a && a.length ? a[a.length - 1] : null;
+  page(`<h1>Industry data <span class="muted small">production, capacity, trade, company results</span></h1><div class="edu">${EDU}</div>
+  <div class="card noprint flt"><label>Sector <select onchange="location.hash='#/industry/'+this.value"><option value="">Overview</option>${secs.map(s => `<option ${s === ind ? 'selected' : ''} value="${esc(s)}">${esc(s.replace(/_/g, ' '))}</option>`).join('')}</select></label></div>
+  ${x ? `<div class="g2"><div class="card"><h3>Production (MoSPI IIP, YoY %)</h3>${(x.iip || []).length ? tbl([{ h: 'Industry', v: r => r.label }, { h: 'Latest month', v: r => (last(r.yoy) || [])[0] }, { h: 'YoY', n: 1, v: r => (last(r.yoy) || [])[1], f: r => fx((last(r.yoy) || [])[1], 1, '%') }, { h: 'Source', v: r => r.url, f: r => srcA(r.url, 'MoSPI') }], x.iip) : '<p class="na">insufficient data: no IIP industry maps to this sector</p>'}</div>
+   <div class="card"><h3>Merchandise trade (TradeStat, US$ mn, financial years)</h3>${x.trade ? tbl([{ h: 'FY ending', v: r => r.fy_end }, { h: 'Exports', n: 1, v: r => r.exports_usd_mn, f: r => inr(r.exports_usd_mn) }, { h: 'Imports', n: 1, v: r => r.imports_usd_mn, f: r => inr(r.imports_usd_mn) }, { h: 'Net', n: 1, v: r => r.net_usd_mn, f: r => inr(r.net_usd_mn) }, { h: 'Import share of trade', n: 1, v: r => r.import_share_pct, f: r => fx(r.import_share_pct, 1, '%') }], x.trade.years, { file: 'trade_' + ind }) + `<p class="small muted">HS chapters: ${Object.entries(x.trade.chapters).map(([k, v]) => esc(k + ' ' + v)).join('; ')}</p>` : '<p class="na">insufficient data: no HS chapter maps to this sector</p>'}</div></div>
+   <div class="card"><h3>Company results (NSE XBRL, latest quarter)</h3>${coResults(Fd, ind)}</div>` : ''}
+  <div class="g2"><div class="card"><h3>Manufacturing capacity utilisation (RBI OBICUS)</h3>${tbl([{ h: 'Quarter ending', v: r => r[0] }, { h: 'CU %', n: 1, v: r => r[1] }, { h: 'CU % (seasonally adjusted)', n: 1, v: r => r[2] }, { h: 'New orders YoY %', n: 1, v: r => r[3] }],
+    (ob.obicus_cu_pct || []).map(([d, v]) => [d, v, ((ob.obicus_cu_sa_pct || []).find(z => z[0] === d) || [])[1], ((ob.obicus_new_orders_yoy_pct || []).find(z => z[0] === d) || [])[1]]))} ${Id.obicus_url ? srcA(Id.obicus_url, 'RBI release') : ''}</div>
+   <div class="card"><h3>Overall IIP, YoY %</h3>${tbl([{ h: 'Month', v: r => r[0].slice(0, 7) }, { h: 'YoY %', n: 1, v: r => r[1] }], (Id.iip_general_yoy || []).slice(-12).reverse())}</div></div>
+  <div class="card"><h3>Global Radar: commodity prices (monthly)</h3>${tbl([{ h: 'Commodity', v: r => r.name }, { h: 'Latest', n: 1, v: r => (last(r.values) || [])[1], f: r => fx((last(r.values) || [])[1], 2) + ' ' + esc(r.unit) }, { h: 'Month', v: r => ((last(r.values) || [])[0] || '').slice(0, 7) },
+    { h: '3-month change', n: 1, v: r => { const v = r.values, b = v[v.length - 4]; return b && b[1] ? 100 * (v[v.length - 1][1] / b[1] - 1) : null; }, f: r => { const v = r.values, b = v[v.length - 4]; return b && b[1] ? fx(100 * (v[v.length - 1][1] / b[1] - 1), 1, '%') : NA; } },
+    { h: 'Exposed sectors (fixed table)', v: r => r.sectors.map(s => s.industry_id).join(', '), f: r => r.sectors.map(s => `<span title="${esc(s.why)}">${secLink(s.industry_id)}</span>`).join(', ') }, { h: 'Source', v: r => r.url, f: r => srcA(r.url, 'FRED') }], Id.commodities || [], { file: 'commodities' })}</div>
+  <div class="card"><h3>Source status</h3>${tbl([{ h: 'Source', v: r => r[0] }, { h: 'Status', v: r => r[1].status }, { h: 'Last success', v: r => r[1].last_success }, { h: 'Latest period', v: r => r[1].latest_period }], st)}</div>
+  <div class="card method small">${(Id.notes || []).map(n => `<p>${esc(n)}</p>`).join('')}</div>`);
+};
+function coResults(Fd, ind) {
+  const cs = Object.values(Fd.companies || {}).filter(c => c.industry_id === ind);
+  if (!cs.length) return '<p class="na">insufficient data: no filings loaded for this sector</p>';
+  return tbl([{ h: 'Company', v: r => r.name, f: r => coLink(r.company_id, r.name) }, { h: 'Quarter', v: r => r.latest_quarter }, { h: 'Revenue ₹ cr', n: 1, v: r => r.q.revenue_cr, f: r => inr(r.q.revenue_cr) },
+    { h: 'Revenue YoY', n: 1, v: r => r.q.revenue_yoy_pct, f: r => fx(r.q.revenue_yoy_pct, 1, '%') }, { h: 'EBITDA margin', n: 1, v: r => r.q.ebitda_margin_pct, f: r => fx(r.q.ebitda_margin_pct, 1, '%') },
+    { h: 'Margin chg (pp)', n: 1, v: r => r.q.ebitda_margin_change_pp, f: r => fx(r.q.ebitda_margin_change_pp, 1) }, { h: 'ROCE FY', n: 1, v: r => (r.returns || {}).roce_pct, f: r => fx((r.returns || {}).roce_pct, 1, '%') },
+    { h: 'ROIC FY', n: 1, v: r => (r.returns || {}).roic_pct, f: r => fx((r.returns || {}).roic_pct, 1, '%') }, { h: 'Incr. ROIC', n: 1, v: r => (r.returns || {}).incremental_roic_pct, f: r => fx((r.returns || {}).incremental_roic_pct, 1, '%') },
+    { h: 'Filing', v: r => r.source_url, f: r => srcA(r.source_url, 'XBRL') }], cs, { file: 'results_' + ind });
 }
 const historyT = h => tbl([{ h: 'Date', v: r => r.update_date }, { h: 'Recorded', v: r => (r.recorded_at || '').slice(0, 16) }, { h: 'From', v: r => r.previous_stage, f: r => r.previous_stage ? stg(r.previous_stage) : '<span class="muted">created</span>' },
   { h: 'To', v: r => r.new_stage, f: r => stg(r.new_stage) }, { h: 'Summary', v: r => r.summary }, { h: 'Author', v: r => r.author }], h, { empty: 'no updates recorded' });
@@ -175,8 +228,9 @@ ROUTES.valuation = async (sym) => {
     <tr><td>Sector index P/E</td><td>${spe && isNum(spe.pe) ? `${spe.pe} (${esc(spe.index)}, ${esc(spe.as_of)}); 10-year percentile ${spe.pctl_10y}, median ${spe.median_10y}` : NA}</td></tr>
     <tr><td>Institutional holding</td><td>${isNum(co.inst_pct) ? co.inst_pct + '% (' + (isNum(co.inst_qoq_pp) ? (co.inst_qoq_pp > 0 ? '+' : '') + co.inst_qoq_pp + ' pp QoQ' : 'QoQ n/a') + ')' : NA}</td></tr>
     <tr><td>Promoter holding</td><td>${isNum(co.promoter_pct) ? co.promoter_pct + '%' : NA}</td></tr>
-    ${Vd.not_ingested.map(x => `<tr><td>${esc(x)}</td><td>${NA} <span class="small muted">(not ingested; enter it on the right with its source)</span></td></tr>`).join('')}</table>
-    <div class="src">${esc(Vd.note)}</div>` : '<p class="muted">Pick a company to see its reported data.</p>'}</div>
+    ${repRows(Vd, co.id)}
+    ${(Vd.not_ingested || []).map(x => `<tr><td>${esc(x)}</td><td>${NA} <span class="small muted">(not ingested; enter it on the right with its source)</span></td></tr>`).join('')}</table>
+    <div class="src">${esc(Vd.note)}</div>${repFormulas(Vd)}` : '<p class="muted">Pick a company to see its reported data.</p>'}</div>
    <div class="card assumptions"><h3>Analyst assumptions <span class="lab UN">ANALYST ASSUMPTION</span></h3>
     <p class="small muted">Blank until you enter them. Nothing is prefilled or estimated for you. Figures taken from reports need a source note.</p>
     <label>Reinvestment method <select id="v_mode" onchange="valMode()"><option value="roic" ${(draft && draft.a && draft.a.mode) === 'explicit' ? '' : 'selected'}>From return on new capital</option><option value="explicit" ${(draft && draft.a && draft.a.mode) === 'explicit' ? 'selected' : ''}>Explicit net capex + working capital</option></select></label>
@@ -188,6 +242,22 @@ ROUTES.valuation = async (sym) => {
   <div class="card"><h3>Published analyst valuations${co ? ' for ' + esc(co.name) : ''}</h3>${pub.length ? tbl([{ h: 'As of', v: r => r.as_of }, { h: 'Company', v: r => r.company_name }, { h: 'Analyst', v: r => r.analyst }, { h: 'Model annual return', n: 1, v: r => r.forward && r.forward.model_annual_return, f: r => pct(r.forward && r.forward.model_annual_return) }, { h: 'Label', v: r => r.label }], pub) : '<p class="na">None published yet.</p>'}</div>`);
   valMode(); if (draft && draft.a) valRun(sym || '');
 };
+const fx = (x, d = 1, suf = '') => isNum(x) ? (+x).toFixed(d) + suf : NA;
+function repRows(Vd, cid) {
+  const r = (Vd.reported || {})[cid];
+  if (!r) return `<tr><td>Company financials</td><td>${NA} <span class="small muted">(no NSE XBRL filing loaded for this company yet)</span></td></tr>`;
+  const R = r.returns || {}, fin = r.financial_sector_format;
+  const src = (u, t) => u ? srcA(u, t) : '';
+  return `<tr><td>Revenue, trailing 4 quarters</td><td>${crn(r.revenue_ttm_cr)} <span class="small muted">to ${esc(r.revenue_ttm_period || '')}</span> ${src(r.source_url, 'XBRL')}<div class="small muted">${r.basis ? esc(r.basis) + ' · ' : ''}base revenue for the model is still entered by you</div></td></tr>
+    <tr><td>EBITDA margin, TTM</td><td>${fin ? '<span class="small muted">not computed for lenders/insurers</span>' : fx(r.ebitda_margin_ttm_pct, 1, '%')} · EBIT margin ${fin ? NA : fx(r.ebit_margin_ttm_pct, 1, '%')}</td></tr>
+    <tr><td>Net debt (negative = net cash)</td><td>${fin ? '<span class="small muted">not computed for lenders/insurers</span>' : crn(r.net_debt_cr)} <span class="small muted">${esc(r.net_debt_date || '')}</span> ${src(r.net_debt_url, 'XBRL')}</td></tr>
+    <tr><td>Market capitalisation ${lab('ESTIMATED VALUE')}</td><td>${crn(r.market_cap_cr)} <span class="small muted">${r.market_cap_price_date ? 'NSE close ' + esc(r.market_cap_price_date) : ''}</span> ${src(r.market_cap_price_url, 'bhavcopy')}<div class="small muted">shares from the latest filing × NSE close</div></td></tr>
+    <tr><td>Shares outstanding</td><td>${isNum(r.shares_outstanding) ? inr(r.shares_outstanding / 1e7, 2) + ' cr shares' : NA}</td></tr>
+    <tr><td>Capex / operating cash flow, FY to ${esc(r.fy_end || '')}</td><td>${crn(r.capex_fy_cr)} / ${crn(r.cfo_fy_cr)} ${src(r.fy_url, 'XBRL')}</td></tr>
+    <tr><td>ROCE / ROIC, FY to ${esc(R.year || '')}</td><td>${fx(R.roce_pct, 1, '%')} / ${fx(R.roic_pct, 1, '%')}${isNum(R.tax_rate_pct) ? ` <span class="small muted">(effective tax ${R.tax_rate_pct}%)</span>` : ''}</td></tr>
+    <tr><td>Incremental ROIC (FY vs prior FY)</td><td>${fx(R.incremental_roic_pct, 1, '%')}${R.note ? `<div class="small muted">${esc(R.note)}</div>` : ''}</td></tr>`;
+}
+const repFormulas = Vd => Vd.formulas ? `<details><summary class="small">Formulas</summary><ul class="small">${Object.values(Vd.formulas).map(f => `<li>${esc(f)}</li>`).join('')}</ul></details>` : '';
 window.valMode = () => { const m = $('#v_mode') && $('#v_mode').value; $$('.vrow').forEach(r => { r.hidden = !!r.dataset.mode && r.dataset.mode !== m; }); };
 window.valRun = () => {
   const { a } = readA(); const err = VAL.check(a); const out = $('#v_out');

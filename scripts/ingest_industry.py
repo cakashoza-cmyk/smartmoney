@@ -29,8 +29,8 @@ HS_SECTOR = {
 }
 # IIP entity key (slug of type/category/sub-category) -> NSE sectors, matched on keywords so both base years map
 IIP_SECTOR = [
-    (r"basic_metals|metallic_minerals", ["metals_mining"]),
-    (r"coke_and_refined_petroleum|fuel_minerals|gas_supply", ["oil_gas_consumable_fuels"]),
+    (r"basic_metals|(?<!non_)metallic_minerals", ["metals_mining"]),
+    (r"coke_and_refined_petroleum|fuel_minerals|gas_supply_gas_supply$", ["oil_gas_consumable_fuels"]),
     (r"chemicals_and_chemical", ["chemicals"]), (r"rubber_and_plastics", ["chemicals"]),
     (r"pharmaceutical", ["healthcare"]),
     (r"other_non_metallic_mineral", ["construction_materials"]),
@@ -40,7 +40,7 @@ IIP_SECTOR = [
     (r"food_products|beverages|tobacco", ["fast_moving_consumer_goods"]),
     (r"textiles|wearing_apparel|leather", ["textiles"]),
     (r"paper_and_paper|wood_and_products", ["forest_materials"]),
-    (r"electricity$|renewable_electricity", ["power"]),
+    (r"^electricity$|^electricity_gas_supply_electricity$", ["power"]),  # total electricity only (renewable + non-renewable are its parts)
     (r"^use_based_capital_goods", ["capital_goods"]), (r"^use_based_consumer_durables", ["consumer_durables"]),
     (r"^use_based_consumer_non_durables", ["fast_moving_consumer_goods"]),
     (r"^use_based_infrastructure_construction_goods", ["construction", "construction_materials"]),

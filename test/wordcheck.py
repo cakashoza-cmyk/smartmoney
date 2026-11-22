@@ -55,7 +55,7 @@ def texts():
         if p.exists():
             yield f, p.read_text(encoding="utf-8")
     v2 = ROOT / "data/export/v2"
-    for name in ("signals.json", "opportunities.json", "meta_v2.json"):
+    for name in ("signals.json", "opportunities.json", "meta_v2.json", "industry.json", "fundamentals.json", "valuation.json"):
         p = v2 / name
         if p.exists():
             d = json.loads(p.read_text())

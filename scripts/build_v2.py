@@ -11,6 +11,7 @@ from migrate import apply_all, applied
 from intelligence.signal_detector import Detector, store, relationships, RULES, MECHANISM, AGENCY
 from intelligence.opportunity_graph import Loader, STAGES, END_STAGES, STAGE_CRITERIA, DIMENSIONS, HORIZONS
 from intelligence import valuation_engine as ve
+from intelligence import fundamentals as FUND
 
 EXP = Path(os.environ["SM_EXPORT"]) if os.environ.get("SM_EXPORT") else ROOT / "data" / "export"
 ANALYST = Path(os.environ["SM_ANALYST"]) if os.environ.get("SM_ANALYST") else ROOT / "data" / "analyst"
@@ -86,7 +87,95 @@ def export_opportunities(con, L: Loader, names):
     return out
 
 
-def export_valuation(con, L: Loader, names, sectors):
+def export_fundamentals(con, names):
+    """Reported company financials + derived metrics (formulas stated). Unknown = null, shown as 'insufficient data'."""
+    has = con.execute("SELECT 1 FROM sqlite_master WHERE name='company_financials'").fetchone()
+    metrics = FUND.all_companies(con) if has else {}
+    for cid, m in metrics.items():
+        m["name"] = names.get(cid, cid)
+        m["industry_id"] = (con.execute("SELECT industry_id FROM companies WHERE company_id=?", (cid,)).fetchone() or [None])[0]
+        segs = con.execute("SELECT segment, revenue_cr, result_cr FROM company_segments WHERE company_id=? AND period_end=? AND basis=? ORDER BY revenue_cr DESC",
+                           (cid, m["latest_quarter"], m["basis"])).fetchall() if has else []
+        m["segments"] = [{"segment": a, "revenue_cr": None if b is None else round(b, 1), "result_cr": None if c is None else round(c, 1)} for a, b, c in segs]
+        hist = con.execute("SELECT period_end, revenue_cr, ebitda_cr, pat_cr FROM company_financials WHERE company_id=? AND period_type='Q' AND basis=? ORDER BY period_end",
+                           (cid, m["basis"])).fetchall()
+        m["quarters"] = [[a, None if b is None else round(b, 1), None if c is None else round(c, 1), None if d is None else round(d, 1)] for a, b, c, d in hist]
+    sec = FUND.sector_aggregates(con, metrics) if metrics else {}
+    for v in sec.values():
+        v.pop("company_ids", None)
+    src = con.execute("SELECT status, last_success, latest_data_period FROM sources WHERE source_id='nse_financials'").fetchone()
+    jdump("fundamentals.json", {"generated": now(), "formulas": FUND.FORMULAS, "units": "Rs crore unless stated",
+                                "source": {"id": "nse_financials", "status": src and src[0], "last_success": src and src[1], "latest_period": src and src[2],
+                                           "url": "https://www.nseindia.com/companies-listing/corporate-integrated-filing"},
+                                "quarter_cols": ["period_end", "revenue_cr", "ebitda_cr", "pat_cr"],
+                                "companies": metrics, "sectors": sec,
+                                "notes": ["Values as tagged in the company's XBRL filing (consolidated when filed). Revenue is as reported and can include excise or other duties; a change in presentation can move growth and margins.",
+                                          "SEBI integrated filing starts with the quarter ended Mar-2025, so growth comparisons begin with the Mar-2026 quarter.",
+                                          "Balance sheet and cash flow appear only in half-year filings (Sep and Mar).",
+                                          "Banks, NBFCs and insurers: EBITDA, net debt, ROCE and ROIC are not computed."]})
+    return metrics
+
+
+def _series(con, metric, entity_type, entity_id, n=None):
+    q = "SELECT o.period_end, o.value, sd.url FROM observations o LEFT JOIN source_documents sd ON sd.doc_id=o.doc_id WHERE o.metric=? AND o.entity_type=? AND o.entity_id=? AND o.value IS NOT NULL ORDER BY o.period_end"
+    r = con.execute(q, (metric, entity_type, entity_id)).fetchall()
+    return r[-n:] if n else r
+
+
+def export_industry(con, names):
+    """Trade by HS chapter mapped to sectors, IIP by industry mapped to sectors, OBICUS capacity utilisation, commodity prices."""
+    try:
+        from ingest_industry import HS_SECTOR, IIP_SECTOR, iip_sectors
+        from intelligence.signal_detector import COMMODITY_SECTORS
+    except Exception:  # noqa: BLE001
+        return
+    from ingest_official import FRED
+    hs_names = {r[0]: r[1].split(":", 1)[1] for r in con.execute("SELECT entity_id, metric FROM observations WHERE metric LIKE 'hs_name:%'")}
+    iip_labels = {r[0]: r[1].split(":", 1)[1] for r in con.execute("SELECT entity_id, metric FROM observations WHERE metric LIKE 'iip_label:%'")}
+    sectors = {}
+    # trade: per sector, per financial year, sum of mapped chapters
+    for metric, key in (("trade_export_usd_mn", "exports"), ("trade_import_usd_mn", "imports")):
+        for hs, pe, v, url in con.execute("SELECT o.entity_id, o.period_end, o.value, sd.url FROM observations o LEFT JOIN source_documents sd ON sd.doc_id=o.doc_id WHERE o.metric=? AND o.value IS NOT NULL", (metric,)):
+            for sec in HS_SECTOR.get(hs, []):
+                t = sectors.setdefault(sec, {}).setdefault("trade", {"chapters": {}, "years": {}})
+                t["chapters"][hs] = hs_names.get(hs, hs)
+                y = t["years"].setdefault(pe, {"exports": 0.0, "imports": 0.0})
+                y[key] += v
+    for sec, d in sectors.items():
+        t = d["trade"]
+        rows = []
+        for pe in sorted(t["years"]):
+            y = t["years"][pe]; tot = y["exports"] + y["imports"]
+            rows.append({"fy_end": pe, "exports_usd_mn": round(y["exports"], 1), "imports_usd_mn": round(y["imports"], 1),
+                         "net_usd_mn": round(y["exports"] - y["imports"], 1), "import_share_pct": round(100 * y["imports"] / tot, 1) if tot else None})
+        t["years"] = rows
+    # IIP
+    for key in [r[0] for r in con.execute("SELECT DISTINCT entity_id FROM observations WHERE metric='iip_yoy_pct_b2022'")]:
+        for sec in iip_sectors(key):
+            s = _series(con, "iip_yoy_pct_b2022", "iip_industry", key, 24)
+            idx = _series(con, "iip_index_b2022", "iip_industry", key, 24)
+            sectors.setdefault(sec, {}).setdefault("iip", []).append({"key": key, "label": iip_labels.get(key, key), "yoy": [[a, b] for a, b, _ in s],
+                                                                      "index": [[a, b] for a, b, _ in idx], "url": s[-1][2] if s else None})
+    gen = _series(con, "iip_yoy_pct_b2022", "iip_industry", "general", 24)
+    obicus = {m: [[a, b] for a, b, _ in _series(con, m, "market", "india_manufacturing")] for m in ("obicus_cu_pct", "obicus_cu_sa_pct", "obicus_new_orders_yoy_pct")}
+    ob_url = con.execute("SELECT sd.url FROM observations o JOIN source_documents sd ON sd.doc_id=o.doc_id WHERE o.metric='obicus_cu_sa_pct' ORDER BY o.period_end DESC LIMIT 1").fetchone()
+    comm = []
+    for sid, (lab, secs) in COMMODITY_SECTORS.items():
+        s = _series(con, "fred_" + sid, "market", "global", 36)
+        if s:
+            comm.append({"series": sid, "name": lab, "unit": FRED.get(sid, ("", ""))[1], "values": [[a, b] for a, b, _ in s],
+                         "url": f"https://fred.stlouisfed.org/series/{sid}", "sectors": [{"industry_id": a, "why": b} for a, b in secs]})
+    status = {r[0]: {"status": r[1], "last_success": r[2], "latest_period": r[3]} for r in con.execute(
+        "SELECT source_id, status, last_success, latest_data_period FROM sources WHERE source_id IN ('tradestat_eidb','un_comtrade','mospi_iip','rbi_obicus','fred','oea_core8','jpc_steel','cea_power','coal_ministry','fert_production','wto_timeseries','eia_api','iea_data','imf_datamapper')")}
+    jdump("industry.json", {"generated": now(), "sectors": sectors, "iip_general_yoy": [[a, b] for a, b, _ in gen], "obicus": obicus,
+                            "obicus_url": ob_url and ob_url[0], "commodities": comm, "source_status": status,
+                            "mapping": {"hs_chapter_to_sector": HS_SECTOR, "iip_pattern_to_sector": [[p, s] for p, s in IIP_SECTOR]},
+                            "notes": ["Import share = imports / (imports + exports) in the mapped HS chapters: a trade-mix measure, not a share of domestic consumption.",
+                                      "HS chapters and IIP industries are mapped to NSE sectors with fixed tables; a chapter or industry can feed more than one sector, and services (IT, telecom services, finance) have no merchandise trade or IIP series.",
+                                      "IIP quick estimates are revised in later releases. OBICUS is a survey of about 1,000 manufacturers, aggregate only."]})
+
+
+def export_valuation(con, L: Loader, names, sectors, metrics=None):
     # reported context per company (no financial statements are ingested; that is stated, not filled)
     latest = rows(con, """SELECT o.company_id, o.period_end, o.value_inr_cr, o.quantity, sd.url, o.source_doc FROM (
                             SELECT company_id, period_end, value_inr_cr, quantity, doc_id, doc_id source_doc,
@@ -101,9 +190,19 @@ def export_valuation(con, L: Loader, names, sectors):
         a = v.get("assumptions") or {}
         vals.append(dict(v, company_name=names.get(v.get("company_id"), v.get("company_id")), forward=ve.forward(a) if not ve.check(a) else None,
                          reverse=ve.reverse(a) if not ve.check(a) else None, label="SCENARIO (analyst assumptions)"))
-    jdump("valuation.json", {"generated": now(), "reported_price": price, "sector_pe": pe, "valuations": vals,
-                             "not_ingested": ["revenue", "operating profit", "capital expenditure", "working capital", "tax paid", "ROIC", "shares outstanding / market value", "net debt"],
-                             "note": "Company financial statements are not ingested in Sprint 1, so every model input is analyst-entered with a source note. Reported context shown: month-end price derived from fund-house files (market value / shares held) and the sector index P/E (NSE)."})
+    reported = {}
+    for cid, m in (metrics or {}).items():
+        t = m.get("ttm") or {}; b = m.get("balance_sheet") or {}; mc = m.get("market_cap") or {}; fy = (m.get("fy") or [{}])[-1]
+        reported[cid] = {"symbol": m["symbol"], "basis": m["basis"], "financial_sector_format": m["financial_sector_format"],
+                         "revenue_ttm_cr": t.get("revenue_cr"), "revenue_ttm_period": t.get("period_end"), "revenue_ttm_quarters": t.get("quarters"),
+                         "ebitda_margin_ttm_pct": t.get("ebitda_margin_pct"), "ebit_margin_ttm_pct": t.get("ebit_margin_pct"),
+                         "net_debt_cr": b.get("net_debt_cr"), "net_debt_date": b.get("date"), "net_debt_url": b.get("source_url"),
+                         "market_cap_cr": mc.get("value_cr"), "market_cap_price_date": mc.get("price_date"), "market_cap_price_url": mc.get("price_url"), "market_cap_label": mc.get("label"),
+                         "shares_outstanding": m.get("shares_outstanding"), "capex_fy_cr": fy.get("capex_cr"), "cfo_fy_cr": fy.get("cfo_cr"), "fy_end": fy.get("period_end"),
+                         "fy_url": fy.get("source_url"), "returns": m.get("returns"), "source_url": m.get("source_url"), "latest_quarter": m.get("latest_quarter")}
+    jdump("valuation.json", {"generated": now(), "reported_price": price, "sector_pe": pe, "valuations": vals, "reported": reported, "formulas": FUND.FORMULAS,
+                             "not_ingested": ["working capital detail", "tax paid (cash)", "segment capital employed", "lease liabilities"],
+                             "note": "Reported panel: values from the company's NSE XBRL filings (TTM = last four quarters) and an estimated market capitalisation (shares from the filing x NSE close). Analyst assumptions are never prefilled: every model input is entered by the analyst with a source note."})
 
 
 def export_graph(con, names):
@@ -127,7 +226,9 @@ def main():
     names = entity_names(con, meta)
     s_all = export_signals(con, names)
     opps = export_opportunities(con, L, names)
-    export_valuation(con, L, names, sectors)
+    metrics = export_fundamentals(con, names)
+    export_industry(con, names)
+    export_valuation(con, L, names, sectors, metrics)
     export_graph(con, names)
     reg = applied(con)
     jdump("meta_v2.json", {"generated": ts, "disclosure": DISCLOSURE, "migrations": {k: v[0] for k, v in sorted(reg.items())}, "migrations_run_now": ran,
