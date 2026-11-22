@@ -1,0 +1,63 @@
+name: refresh
+# Zero-cost pipeline: GitHub Actions cron + SQLite kept as a release asset (not in git history) + JSON exports committed for GitHub Pages.
+on:
+  schedule:
+    - cron: "30 13 * * 1-5"   # 19:00 IST Mon-Fri: daily group (NSE FII/DII, bulk/block deals, announcements, PIB, CRISIL, FRED, sector P/E) + NSDL fortnightly check
+    - cron: "30 0 * * 0"      # 06:00 IST Sunday: monthly group (universe, AMFI, RBI SIBC, SEBI AIF, DPIIT probe) + quarterly shareholding patterns (incremental, catches late filers)
+    - cron: "0 2 5 * *"       # 07:30 IST on the 5th: annual group (World Bank WDI)
+  workflow_dispatch:
+    inputs:
+      groups:
+        description: "Groups to run: daily fortnightly monthly quarterly annual all"
+        default: "daily fortnightly"
+permissions:
+  contents: write
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TZ: Asia/Kolkata
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet requests pandas lxml openpyxl xlrd
+      - name: Pick groups
+        id: g
+        run: |
+          case "${{ github.event.schedule }}" in
+            "30 13 * * 1-5") G="daily fortnightly" ;;
+            "30 0 * * 0") G="monthly quarterly" ;;
+            "0 2 5 * *") G="annual" ;;
+            *) G="${{ github.event.inputs.groups || 'daily fortnightly' }}" ;;
+          esac
+          echo "groups=$G" >> "$GITHUB_OUTPUT"; echo "Running: $G"
+      - name: Restore database (release asset)
+        run: |
+          gh release download db --pattern smartmoney.db.gz --dir data --clobber && gunzip -f data/smartmoney.db.gz || echo "No database asset yet; starting fresh"
+      - name: Ingest + build (failures are logged per source; earlier data is never wiped)
+        run: cd scripts && python3 run_all.py ${{ steps.g.outputs.groups }}
+      - name: Tests (acceptance + recommendation-word check)
+        run: |
+          python3 -m unittest discover -s test -p "test_*.py" -v
+          python3 test/wordcheck.py
+      - name: Save database
+        run: |
+          python3 -c "import sqlite3;c=sqlite3.connect('data/smartmoney.db');c.execute('VACUUM');c.close()"
+          gzip -kf -9 data/smartmoney.db
+          gh release view db >/dev/null 2>&1 || gh release create db --title "Database (latest)" --notes "SQLite database used by the pipeline. Overwritten on every run. Weekly dated copies are attached as backups."
+          gh release upload db data/smartmoney.db.gz --clobber
+          if [ "$(date +%u)" = "7" ]; then cp data/smartmoney.db.gz "data/smartmoney-$(date +%F).db.gz"; gh release upload db "data/smartmoney-$(date +%F).db.gz" --clobber; fi
+      - name: Commit exports
+        run: |
+          git config user.name "smartmoney-bot"
+          git config user.email "smartmoney-bot@users.noreply.github.com"
+          git pull --rebase -q || true
+          git add data/export data/weights.json
+          git diff --cached --quiet || (git commit -q -m "data refresh ${{ steps.g.outputs.groups }} $(date '+%Y-%m-%d %H:%M IST')" && git push)

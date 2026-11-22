@@ -1,0 +1,87 @@
+{
+ "capital_flow": {
+  "1-3y": {
+   "fpi_flow_3m": 25,
+   "inst_share_change_qoq": 20,
+   "inst_breadth_qoq": 20,
+   "deals_net_inst_90d": 15,
+   "new_independent_holders": 10,
+   "bank_credit_fytd": 10
+  },
+  "3-10y": {
+   "fpi_flow_persistence_36m": 20,
+   "fpi_flow_12m": 15,
+   "inst_share_change_yoy": 15,
+   "bank_credit_yoy": 20,
+   "aif_sector_growth_yoy": 15,
+   "corporate_capital_events_180d": 15
+  },
+  "10-20y": {
+   "fpi_cum_since_2017": 30,
+   "bank_credit_yoy": 20,
+   "aif_sector_growth_yoy": 20,
+   "policy_commitments": 30
+  }
+ },
+ "investor_activity": {
+  "1-3y": {
+   "new_positions_qoq": 40,
+   "increased_positions_qoq": 30,
+   "net_deal_buys_90d": 30
+  },
+  "3-10y": {
+   "positions_held_5q": 40,
+   "persistence_quarters": 40,
+   "sector_breadth": 20
+  },
+  "10-20y": {
+   "positions_held_5q": 50,
+   "persistence_quarters": 50
+  }
+ },
+ "industry_evidence": {
+  "1-3y": {
+   "bank_credit_fytd": 40,
+   "rating_balance_12m": 30,
+   "corporate_capital_events_180d": 30
+  },
+  "3-10y": {
+   "bank_credit_yoy": 30,
+   "rating_balance_12m": 20,
+   "policy_commitments": 25,
+   "aif_sector_growth_yoy": 25
+  },
+  "10-20y": {
+   "policy_commitments": 50,
+   "bank_credit_yoy": 25,
+   "aif_sector_growth_yoy": 25
+  }
+ },
+ "company_evidence": {
+  "1-3y": {
+   "inst_share_change_qoq": 40,
+   "independent_holders": 30,
+   "promoter_change_qoq": 30
+  },
+  "3-10y": {
+   "inst_share_change_yoy": 40,
+   "independent_holders": 30,
+   "promoter_change_yoy": 30
+  },
+  "10-20y": {
+   "independent_holders": 50,
+   "inst_share_change_yoy": 50
+  }
+ },
+ "valuation_context": {
+  "1-3y": {
+   "pe_percentile_10y": 100
+  },
+  "3-10y": {
+   "pe_percentile_10y": 100
+  },
+  "10-20y": {
+   "pe_percentile_10y": 100
+  }
+ }
+}

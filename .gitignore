@@ -1,0 +1,6 @@
+data/*.db
+data/*.db-journal
+data/*.db.gz
+__pycache__/
+shots/*.txt
+.venv/
