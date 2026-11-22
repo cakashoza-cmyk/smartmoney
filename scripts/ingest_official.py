@@ -418,7 +418,7 @@ def job_fred(con):
         txt = ""
         for _ in range(2):
             try:
-                txt = subprocess.run(["curl", "-s", "-m", "90", "-A", "Mozilla/5.0", u], capture_output=True, text=True, timeout=100).stdout
+                txt = subprocess.run(["curl", "-s", "-m", "90", u], capture_output=True, text=True, timeout=100).stdout
             except Exception:  # noqa: BLE001
                 txt = ""
             if txt.count("\n") > 10:
@@ -464,7 +464,8 @@ def job_sector_pe(con):
             try:
                 r = h.s.post(NI, data=body, headers={"Content-Type": "application/json; charset=utf-8", "Referer": "https://www.niftyindices.com/reports/historical-data",
                                                      "X-Requested-With": "XMLHttpRequest"}, timeout=60)
-                rows = json.loads(r.json()["d"])
+                j = r.json()
+                rows = json.loads(j["d"]) if isinstance(j, dict) and "d" in j else (j if isinstance(j, list) else [])
             except Exception:  # noqa: BLE001
                 pass
             d = None

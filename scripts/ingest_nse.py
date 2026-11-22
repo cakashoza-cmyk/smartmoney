@@ -75,7 +75,7 @@ def job_deals(con, days=None):
                 ok = insert_new(con, "transactions", dict(txn_id=tid, txn_type="secondary_purchase" if side == "BUY" else "secondary_sale",
                      evidence_label="VERIFIED FACT", txn_date=dt, announcement_date=dt, investor_id=iid, company_id=cid, industry_id=ind,
                      instrument=f"equity ({kind} deal)", side=side, quantity=qty, price=px, amount=(qty * px if qty and px else None), currency="INR",
-                     amount_inr_cr=round(qty * px / 1e7, 4) if qty and px else None, related_txn_id=None,
+                     amount_inr_cr=round(qty * px / 1e7, 7) if qty and px else None, related_txn_id=None,
                      description=f"{client} {side.lower()} {int(qty or 0):,} shares of {nm} at Rs {px} ({kind} deal; value = qty x price)",
                      doc_id=d, source_id="nse_deals"), "txn_id")
                 new += ok; dup += (not ok)

@@ -123,8 +123,8 @@ class B:
         self.groups = {r["group_id"]: r for r in self.q("SELECT * FROM investor_groups")}
 
     def fixups(self):
-        """Idempotent data repairs. Tiny deals were once rounded to 0.00 crore; recompute from quantity x price (4 decimals)."""
-        self.con.execute("UPDATE transactions SET amount_inr_cr=round(quantity*price/1e7, 4) WHERE source_id='nse_deals' AND amount_inr_cr=0 AND quantity>0 AND price>0")
+        """Idempotent data repairs. Tiny deals were once rounded to 0.00 crore; recompute from quantity x price (rupee precision)."""
+        self.con.execute("UPDATE transactions SET amount_inr_cr=round(quantity*price/1e7, 7) WHERE source_id='nse_deals' AND amount_inr_cr=0 AND quantity>0 AND price>0")
         self.con.commit()
 
     def excluded_group(self, gid):
