@@ -159,3 +159,22 @@ class Rules(unittest.TestCase):
         for r in RULES.values():
             self.assertIn(r["type"], SIGNAL_DIMENSION, r)
         self.assertIn("structural demand", STAGE_CRITERIA["emergence"])
+
+
+class QuarterRepair(unittest.TestCase):
+    def test_mis_tagged_quarter_is_derived_from_ytd(self):
+        con = sqlite3.connect(":memory:")
+        con.executescript((ROOT / "migrations" / "003_company_financials.sql").read_text())
+        def ins(pt, ps, pe, m, rev, ebitda, bs=None):
+            con.execute("INSERT INTO company_financials(fin_id,company_id,symbol,period_type,period_start,period_end,months,basis,taxonomy,revenue_cr,ebitda_cr,bs_date,xbrl_url,retrieved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (f"{pt}{pe}", "NSE:X", "X", pt, ps, pe, m, "Consolidated", "INDAS", rev, ebitda, bs, "https://x/" + pe, "t"))
+        ins("Q", "2025-04-01", "2025-06-30", 3, 100, 20); ins("YTD", "2025-04-01", "2025-06-30", 3, 100, 20)
+        ins("Q", "2025-04-01", "2025-09-30", 6, 210, 42, "2025-09-30")  # quarter context tagged with the half-year period
+        ins("Q", "2026-04-01", "2026-06-30", 3, 120, 24); ins("YTD", "2026-04-01", "2026-06-30", 3, 120, 24)
+        ins("Q", "2026-07-01", "2026-09-30", 3, 132, 30, "2026-09-30"); ins("YTD", "2026-04-01", "2026-09-30", 6, 252, 54, "2026-09-30")
+        m = F.company(con, "NSE:X")
+        self.assertEqual(m["latest_quarter"], "2026-09-30")
+        self.assertIn("2025-09-30", m["derived_quarters"])
+        self.assertEqual(m["q"]["year_ago_revenue_cr"], 110.0)  # 210 - 100
+        self.assertEqual(m["q"]["revenue_yoy_pct"], 20.0)
+        self.assertIsNone(m["ttm"], "four consecutive quarters are not available")

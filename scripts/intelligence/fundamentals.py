@@ -4,7 +4,7 @@ No forecasting and no assumptions: the tax rate is the company's own effective r
 from __future__ import annotations
 
 FORMULAS = {
-    "ttm": "TTM = sum of the latest four reported quarters (same reporting basis)",
+    "ttm": "TTM = sum of the latest four consecutive quarters (same reporting basis); a quarter tagged only as year-to-date is derived as YTD(this quarter) - YTD(previous quarter) of the same financial year",
     "ebitda": "EBITDA = PBT before exceptional items + finance costs + depreciation & amortisation - other income",
     "ebit": "EBIT (operating profit) = PBT before exceptional items + finance costs - other income",
     "ebitda_margin": "EBITDA margin = EBITDA / revenue from operations",
@@ -39,21 +39,67 @@ def _year_ago(pe):
     return f"{int(y) - 1}-{m}-{d}"
 
 
+QFIELDS = ("revenue_cr", "ebitda_cr", "ebit_cr", "pat_cr", "other_income_cr")
+
+
+def _basis(rows):
+    """Basis of the most recent filing (consolidated when filed)."""
+    r = sorted(rows, key=lambda r: (r["period_end"], r["basis"] == "Consolidated"))
+    return r[-1]["basis"] if r else None
+
+
+def _prev_q_end(pe):
+    y, m = int(pe[:4]), int(pe[5:7])
+    return {3: f"{y - 1}-12-31", 6: f"{y}-03-31", 9: f"{y}-06-30", 12: f"{y}-09-30"}[m]
+
+
+def quarters(rows, basis):
+    """Reported quarters; a quarter missing as such but present as year-to-date is derived as YTD(this) - YTD(previous quarter)
+    of the same financial year (flagged 'derived_from_ytd')."""
+    q = {r["period_end"]: dict(r, derived_from_ytd=False) for r in rows if r["period_type"] == "Q" and r["basis"] == basis}
+    ytd = {r["period_end"]: r for r in rows if r["period_type"] == "YTD" and r["basis"] == basis}
+    for pe, y in ytd.items():
+        if pe in q:
+            continue
+        if y["months"] == 3:
+            q[pe] = dict(y, period_type="Q", derived_from_ytd=False); continue
+        p = ytd.get(_prev_q_end(pe))
+        if p and p["period_start"] == y["period_start"] and (y["months"] - p["months"]) == 3:
+            d = dict(y, period_type="Q", months=3, derived_from_ytd=True, period_start=None)
+            for k in QFIELDS + ("finance_costs_cr", "depreciation_cr", "pbt_cr", "tax_cr"):
+                d[k] = None if y.get(k) is None or p.get(k) is None else y[k] - p[k]
+            q[pe] = d
+    return [q[k] for k in sorted(q)]
+
+
 def company(con, cid, price=None):
     """Metrics for one company. price = {'close': float, 'date': str, 'url': str} from the bhavcopy, optional."""
     rows = _rows(con, cid)
     if not rows:
         return None
-    q = [r for r in rows if r["period_type"] == "Q"]
+    # A 'quarter' row that spans 6/9/12 months is a year-to-date figure tagged in the quarter context: use it as year-to-date
+    have_ytd = {(r["period_end"], r["basis"]) for r in rows if r["period_type"] == "YTD"}
+    fixed = []
+    for r in rows:
+        if r["period_type"] == "Q" and r["months"] != 3:
+            if (r["period_end"], r["basis"]) not in have_ytd and (r["period_start"] or "")[5:] == "04-01":
+                fixed.append(dict(r, period_type="YTD"))
+            continue
+        fixed.append(r)
+    rows = fixed
+    basis = _basis(rows)
+    if not basis:
+        return None
+    q = quarters(rows, basis)
     if not q:
         return None
-    last = q[-1]; basis = last["basis"]
-    q = [r for r in q if r["basis"] == basis]
+    last = q[-1]
     fy = [r for r in rows if r["period_type"] == "YTD" and r["basis"] == basis and (r["months"] or 0) >= 11]
     fin = (last["taxonomy"] or "") in FIN_TAX
     out = {"company_id": cid, "symbol": last["symbol"], "basis": basis, "taxonomy": last["taxonomy"], "financial_sector_format": fin,
            "latest_quarter": last["period_end"], "filing_date": last["filing_date"], "source_url": last["xbrl_url"], "sources": {}}
     out["sources"]["latest_quarter"] = last["xbrl_url"]
+    out["derived_quarters"] = [r["period_end"] for r in q if r.get("derived_from_ytd")]
     # latest quarter and growth vs the same quarter a year earlier
     ya = next((r for r in q if r["period_end"] == _year_ago(last["period_end"])), None)
     out["q"] = {k: _r(last.get(k)) for k in ("revenue_cr", "ebitda_cr", "ebit_cr", "pat_cr", "other_income_cr")}
@@ -68,12 +114,13 @@ def company(con, cid, price=None):
         p0, p1 = ya["pat_cr"], last["pat_cr"]
         out["q"]["pat_yoy_pct"] = None if p0 is None or p1 is None or p0 <= 0 else _r(100 * (p1 / p0 - 1), 1)
         out["q"]["year_ago_period"] = ya["period_end"]
+        out["q"]["year_ago_revenue_cr"] = _r(ya["revenue_cr"]); out["q"]["year_ago_ebitda_cr"] = None if fin else _r(ya["ebitda_cr"])
     else:
-        out["q"].update(revenue_yoy_pct=None, ebitda_margin_change_pp=None, pat_yoy_pct=None, year_ago_period=None)
+        out["q"].update(revenue_yoy_pct=None, ebitda_margin_change_pp=None, pat_yoy_pct=None, year_ago_period=None, year_ago_revenue_cr=None, year_ago_ebitda_cr=None)
     # TTM from the last four consecutive quarters
     last4 = q[-4:]
     ttm = None
-    if len(last4) == 4:
+    if len(last4) == 4 and all(_prev_q_end(last4[i]["period_end"]) == last4[i - 1]["period_end"] for i in range(1, 4)):
         ends = [r["period_end"] for r in last4]
         ttm = {"period_end": ends[-1], "quarters": ends}
         for k in ("revenue_cr", "ebitda_cr", "ebit_cr", "pat_cr"):
@@ -83,7 +130,7 @@ def company(con, cid, price=None):
         ttm["ebit_margin_pct"] = None if fin or ttm["ebit_cr"] is None else _r(100 * _div(ttm["ebit_cr"], ttm["revenue_cr"]), 1)
     out["ttm"] = ttm
     # balance sheet: latest filing with one
-    bs = [r for r in rows if r["bs_date"] and r["period_type"] == "Q" and r["basis"] == basis]
+    bs = sorted([r for r in rows if r["bs_date"] and r["basis"] == basis], key=lambda r: r["bs_date"])
     b = bs[-1] if bs else None
     out["balance_sheet"] = None if not b else {"date": b["bs_date"], "borrowings_cr": _r(b["borrowings_cr"]), "cash_cr": _r(b["cash_cr"]),
                                                "equity_cr": _r(b["equity_cr"]), "net_debt_cr": None if fin else _r(b["net_debt_cr"]), "source_url": b["xbrl_url"]}
@@ -174,9 +221,8 @@ def sector_aggregates(con, metrics):
         if not s or m["q"].get("year_ago_period") is None or m["q"]["revenue_cr"] is None:
             continue
         a = agg.setdefault(s, {"period": {}, "n": 0, "rev1": 0, "rev0": 0, "e1": 0, "e0": 0, "ne": 0, "companies": []})
-        y0 = con.execute("SELECT revenue_cr, ebitda_cr FROM company_financials WHERE company_id=? AND period_type='Q' AND period_end=? AND basis=?",
-                         (cid, m["q"]["year_ago_period"], m["basis"])).fetchone()
-        if not y0 or y0[0] is None or y0[0] <= 0:
+        y0 = (m["q"]["year_ago_revenue_cr"], m["q"]["year_ago_ebitda_cr"])
+        if y0[0] is None or y0[0] <= 0:
             continue
         a["n"] += 1; a["rev1"] += m["q"]["revenue_cr"]; a["rev0"] += y0[0]
         a["period"][m["latest_quarter"]] = a["period"].get(m["latest_quarter"], 0) + 1

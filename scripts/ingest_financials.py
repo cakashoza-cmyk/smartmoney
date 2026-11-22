@@ -106,11 +106,12 @@ def extract(xml: str):
     rows = sorted(rows, key=lambda r: r["months"])
     out = []
     if rows:
-        q = rows[0]; q["period_type"] = "Q"; out.append(q)
-        if len(rows) > 1 and rows[-1]["months"] > q["months"]:
-            y = rows[-1]; y["period_type"] = "YTD"; out.append(y)
-        elif q["months"] == 3 and q["period_start"][5:7] == "04":  # Q1: YTD == quarter
-            y = dict(q); y["period_type"] = "YTD"; out.append(y)
+        q = rows[0]
+        if q["months"] == 3:  # some filers tag only the year-to-date period; then no quarter row is stored (fundamentals derives it from YTD differences)
+            q["period_type"] = "Q"; out.append(q)
+        y = rows[-1]
+        if y["months"] > 3 or (y["months"] == 3 and y["period_start"][5:7] == "04"):  # Q1: YTD == quarter
+            y = dict(y); y["period_type"] = "YTD"; out.append(y)
     ic = list(ins_end)
     bs = {k: first(ic, v) for k, v in BS.items()}
     have_bs = any(bs[k] is not None for k in ("b_cur", "b_nc", "cash", "eq", "eq_owners", "assets"))

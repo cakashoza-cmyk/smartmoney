@@ -299,9 +299,9 @@ class Detector:
             q = m["q"]; g = q.get("revenue_yoy_pct"); dm = q.get("ebitda_margin_change_pp")
             if g is None:
                 continue
-            doc = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_type='Q' AND period_end=? AND basis=?", cid, m["latest_quarter"], m["basis"])
+            doc = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_end=? AND basis=? ORDER BY period_type", cid, m["latest_quarter"], m["basis"])
             doc = doc[0][0] if doc else None
-            yd = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_type='Q' AND period_end=? AND basis=?", cid, q["year_ago_period"], m["basis"])
+            yd = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_end=? AND basis=? ORDER BY period_type", cid, q["year_ago_period"], m["basis"])
             refs = [doc] + ([yd[0][0]] if yd else [])
             if g >= 25 and dm is not None and dm <= R["margin_lo"]:
                 continue  # mixed: likely a presentation change; not emitted
@@ -319,7 +319,7 @@ class Detector:
         for sec, a in agg.items():
             if not a["quarter"]:
                 continue
-            docs = [r[0] for r in self.q(f"SELECT doc_id FROM company_financials WHERE period_type='Q' AND period_end=? AND company_id IN ({','.join('?' * len(a['company_ids']))}) LIMIT 40", a["quarter"], *a["company_ids"])]
+            docs = [r[0] for r in self.q(f"SELECT DISTINCT doc_id FROM company_financials WHERE period_end=? AND company_id IN ({','.join('?' * len(a['company_ids']))}) LIMIT 40", a["quarter"], *a["company_ids"])]
             if not docs:
                 continue
             R = RULES["fin_sector_revenue"]; g = a["revenue_yoy_pct"]
