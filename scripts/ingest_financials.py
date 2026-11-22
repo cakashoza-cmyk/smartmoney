@@ -179,6 +179,9 @@ def universe(con):
 
 def job(con, limit=None, symbols=None, pause=0.6):
     h = Http(nse=True)
+    # rows stored before the quarter-context fix: a 'quarter' spanning 6/9/12 months is a year-to-date figure
+    con.execute("UPDATE OR IGNORE company_financials SET period_type='YTD' WHERE period_type='Q' AND months<>3 AND substr(period_start,6)='04-01'")
+    con.execute("DELETE FROM company_financials WHERE period_type='Q' AND months<>3"); con.commit()
     seen = {r[0] for r in con.execute("SELECT DISTINCT xbrl_url FROM company_financials")}
     uni = universe(con)
     if symbols:
