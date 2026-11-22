@@ -28,6 +28,39 @@ RULES = {
                          "text": "Share of the sector's companies whose institutional holding rose quarter on quarter is 65% or more, or 35% or less (10 or more companies)."},
     "inst_share_company": {"type": "capital_flow", "source": "nse_shp", "threshold": 3.0, "fresh_days": 200, "confidence": 0.85,
                            "text": "Institutional holding of a Nifty 500 company changed by 3 percentage points or more quarter on quarter (NSE shareholding pattern)."},
+    # ---- Sprint 2: fundamentals, production, trade, capacity, global
+    "fin_company_quarter": {"type": "company_execution", "source": "nse_financials", "rev_hi": 20.0, "rev_lo": -10.0, "margin_lo": -5.0, "fresh_days": 150, "confidence": 0.85,
+                            "text": "Nifty 500 company, latest reported quarter vs the same quarter a year earlier (same basis): revenue +20% or more with EBITDA margin not lower (lenders/insurers: profit after tax +20% or more), or revenue -10% or less, or EBITDA margin down 5 pp or more. Not emitted when revenue rose 25%+ while margin fell 5 pp+ at the same time (usually a presentation change such as duties included in revenue)."},
+    "fin_sector_revenue": {"type": "industry_economics", "source": "nse_financials", "hi": 15.0, "lo": 0.0, "min_companies": 5, "fresh_days": 150, "confidence": 0.8,
+                           "text": "Sum of the sector's Nifty 500 company revenues in the latest quarter vs the same quarter a year earlier (companies with both quarters, 5 or more) grew 15% or more, or did not grow."},
+    "fin_sector_margin": {"type": "industry_economics", "source": "nse_financials", "threshold": 1.5, "min_companies": 5, "fresh_days": 150, "confidence": 0.75,
+                          "text": "Aggregate EBITDA margin of the sector's non-financial Nifty 500 companies changed by 1.5 percentage points or more vs the same quarter a year earlier (5 or more companies)."},
+    "iip_sector_3m": {"type": "structural_demand", "source": "mospi_iip", "hi": 8.0, "lo": -2.0, "fresh_days": 120, "confidence": 0.8,
+                      "text": "Average year-on-year growth over the latest 3 months of the IIP industries mapped to the sector (MoSPI, base 2022-23) is 8% or more, or -2% or less."},
+    "trade_export_fy": {"type": "structural_demand", "source": "tradestat_eidb", "hi": 15.0, "lo": -10.0, "fresh_days": 450, "confidence": 0.8,
+                        "text": "India's merchandise exports in the HS chapters mapped to the sector grew 15% or more, or fell 10% or more, in the latest financial year (TradeStat, US$)."},
+    "trade_import_share": {"type": "competitive_position", "source": "tradestat_eidb", "threshold": 3.0, "min_trade_usd_mn": 1000, "fresh_days": 450, "confidence": 0.7,
+                           "text": "Imports as a share of two-way trade (imports / (imports + exports)) in the sector's mapped HS chapters moved by 3 percentage points or more in the latest financial year (US$ 1 bn+ of trade). Higher = more reliance on imports in that trade."},
+    "capacity_utilisation": {"type": "structural_demand", "source": "rbi_obicus", "hi": 75.0, "lo": 70.0, "fresh_days": 200, "confidence": 0.8,
+                             "text": "RBI OBICUS seasonally adjusted manufacturing capacity utilisation for the latest quarter is 75% or more, or 70% or less."},
+    "commodity_3m": {"type": "global", "source": "fred", "threshold": 15.0, "fresh_days": 100, "confidence": 0.8,
+                     "text": "A tracked commodity price (IMF primary commodity series via FRED; Brent from EIA via FRED) moved 15% or more over 3 months (latest monthly value vs 3 months earlier). IMF series are published with about a 6-8 week lag; the period is the month the average covers."},
+}
+# commodity series -> sectors with the direction of first-order exposure (fixed, rule-based; producer = price up helps realisations)
+COMMODITY_SECTORS = {
+    "DCOILBRENTEU": ("Brent crude", [("oil_gas_consumable_fuels", "producer/refiner realisations and marketing margins"), ("chemicals", "feedstock cost"), ("automobile_and_auto_components", "fuel cost for users"), ("capital_goods", "upstream capex cycle")]),
+    "PCOPPUSDM": ("Copper", [("metals_mining", "producer realisations"), ("capital_goods", "input cost (cables, motors, transformers)"), ("consumer_durables", "input cost")]),
+    "PALUMUSDM": ("Aluminium", [("metals_mining", "producer realisations"), ("automobile_and_auto_components", "input cost"), ("capital_goods", "input cost")]),
+    "PIORECRUSDM": ("Iron ore", [("metals_mining", "miner realisations; steelmaker input cost")]),
+    "PCOALAUUSDM": ("Coal (Australia)", [("power", "imported-coal fuel cost"), ("construction_materials", "kiln fuel cost"), ("metals_mining", "coking/thermal coal cost and coal miner realisations")]),
+    "PNGASJPUSDM": ("LNG (Asia)", [("oil_gas_consumable_fuels", "gas importer/distributor costs"), ("chemicals", "fertiliser and petrochemical feedstock cost"), ("power", "gas-based generation cost")]),
+    "PZINCUSDM": ("Zinc", [("metals_mining", "producer realisations")]),
+    "PNICKUSDM": ("Nickel", [("metals_mining", "stainless steel input cost / producer realisations")]),
+    "PCOTTINDUSDM": ("Cotton", [("textiles", "raw material cost")]),
+    "PPOILUSDM": ("Palm oil", [("fast_moving_consumer_goods", "edible oil and personal care input cost")]),
+    "PRUBBUSDM": ("Natural rubber", [("automobile_and_auto_components", "tyre input cost")]),
+    "PSUGAISAUSDM": ("Sugar", [("fast_moving_consumer_goods", "sugar producer realisations; food input cost")]),
+    "PWHEAMTUSDM": ("Wheat", [("fast_moving_consumer_goods", "food input cost")]),
 }
 MECHANISM = {
     "fpi_sector_3m": "Foreign portfolio investors' disclosed net equity buying or selling in the sector",
@@ -37,6 +70,14 @@ MECHANISM = {
     "bank_credit_yoy": "Pace of bank lending to the sector (outstanding credit, not new sanctions)",
     "inst_breadth_qoq": "Breadth of institutional holding increases across the sector's listed companies",
     "inst_share_company": "Change in the institutional share of the company's equity",
+    "fin_company_quarter": "Reported revenue and operating margin of the company (exchange XBRL filing)",
+    "fin_sector_revenue": "Aggregate reported revenue of the sector's listed companies",
+    "fin_sector_margin": "Aggregate reported operating (EBITDA) margin of the sector's listed companies",
+    "iip_sector_3m": "Industrial production volumes in the industries mapped to the sector (MoSPI IIP)",
+    "trade_export_fy": "India's merchandise exports in the sector's mapped HS chapters",
+    "trade_import_share": "Reliance on imports in the sector's mapped merchandise trade",
+    "capacity_utilisation": "How fully manufacturers' installed capacity is being used (RBI survey)",
+    "commodity_3m": "Global commodity price move that changes input costs or realisations for exposed sectors",
 }
 AGENCY = {"crisil_ratings": "CRISIL", "icra_ratings": "ICRA", "care_ratings": "CARE", "indra_ratings": "India Ratings"}
 
@@ -237,7 +278,159 @@ class Detector:
         sectors = (_j(self.exp, "sectors.json") or {}).get("sectors", [])
         companies = _j(self.exp, "companies.json") or {"cols": [], "rows": []}
         self.fpi(sectors); self.mf(_j(self.exp, "mf.json")); self.ratings(); self.credit(sectors); self.shareholding(sectors, companies)
+        for fn in (self.fundamentals, self.production, self.trade, self.capacity, self.commodities):
+            try:
+                fn()
+            except Exception as e:  # noqa: BLE001  (a missing Sprint 2 table/source must not stop Sprint 1 rules)
+                print(f"detector {fn.__name__} skipped: {type(e).__name__}: {e}")
         return self.out
+
+    # ------------------------------------------------------------------ Sprint 2 rules
+    def fundamentals(self):
+        from intelligence import fundamentals as F
+        if not self.q("SELECT name FROM sqlite_master WHERE name='company_financials'"):
+            return
+        n500 = {r[0] for r in self.q("SELECT company_id FROM companies WHERE index_membership LIKE 'NIFTY 500%'")}
+        names = dict(self.q("SELECT company_id, name FROM companies"))
+        metrics = {k: v for k, v in F.all_companies(self.con).items() if k in n500}
+        self.fund_metrics = metrics
+        R = RULES["fin_company_quarter"]
+        for cid, m in metrics.items():
+            q = m["q"]; g = q.get("revenue_yoy_pct"); dm = q.get("ebitda_margin_change_pp")
+            if g is None:
+                continue
+            doc = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_type='Q' AND period_end=? AND basis=?", cid, m["latest_quarter"], m["basis"])
+            doc = doc[0][0] if doc else None
+            yd = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_type='Q' AND period_end=? AND basis=?", cid, q["year_ago_period"], m["basis"])
+            refs = [doc] + ([yd[0][0]] if yd else [])
+            if g >= 25 and dm is not None and dm <= R["margin_lo"]:
+                continue  # mixed: likely a presentation change; not emitted
+            pos = (g >= R["rev_hi"] and ((dm is not None and dm >= 0) or (m["financial_sector_format"] and (q.get("pat_yoy_pct") or 0) >= 20)))
+            neg = g <= R["rev_lo"] or (dm is not None and dm <= R["margin_lo"])
+            if not (pos or neg):
+                continue
+            mtxt = f"; EBITDA margin {q['ebitda_margin_pct']}% ({dm:+.1f} pp)" if dm is not None else (f"; profit after tax {q['pat_yoy_pct']:+.1f}%" if q.get("pat_yoy_pct") is not None else "")
+            self.emit("fin_company_quarter", "company", cid, m["latest_quarter"],
+                      f"Revenue {g:+.1f}% YoY{', margin ' + format(dm, '+.1f') + ' pp' if dm is not None else ''}: {names.get(cid, cid)} (quarter to {m['latest_quarter']})",
+                      f"{m['basis']} results, quarter ended {m['latest_quarter']} vs {q['year_ago_period']}: revenue from operations Rs {q['revenue_cr']:,.0f} cr ({g:+.1f}%){mtxt}. EBITDA = PBT before exceptional items + finance costs + D&A - other income. Source: NSE integrated filing XBRL.",
+                      g, "% revenue YoY", "positive" if pos and not neg else "negative", "nse_financials", doc, refs)
+        agg = F.sector_aggregates(self.con, metrics)
+        self.fund_sectors = agg
+        for sec, a in agg.items():
+            if not a["quarter"]:
+                continue
+            docs = [r[0] for r in self.q(f"SELECT doc_id FROM company_financials WHERE period_type='Q' AND period_end=? AND company_id IN ({','.join('?' * len(a['company_ids']))}) LIMIT 40", a["quarter"], *a["company_ids"])]
+            if not docs:
+                continue
+            R = RULES["fin_sector_revenue"]; g = a["revenue_yoy_pct"]
+            if a["companies"] >= R["min_companies"] and g is not None and not (R["lo"] < g < R["hi"]):
+                self.emit("fin_sector_revenue", "industry", sec, a["quarter"],
+                          f"Sector revenue {g:+.1f}% YoY: {self.iname(sec)} ({a['companies']} companies, quarter to {a['quarter']})",
+                          f"Sum of reported revenue from operations of {a['companies']} Nifty 500 companies in the sector with both quarters on the same basis, latest quarter vs a year earlier.",
+                          g, "% revenue YoY", "positive" if g >= R["hi"] else "negative", "nse_financials", docs[0], docs)
+            R = RULES["fin_sector_margin"]; dm = a["ebitda_margin_change_pp"]
+            if a["margin_companies"] >= R["min_companies"] and dm is not None and abs(dm) >= R["threshold"]:
+                self.emit("fin_sector_margin", "industry", sec, a["quarter"],
+                          f"Sector EBITDA margin {dm:+.1f} pp YoY to {a['ebitda_margin_pct']}%: {self.iname(sec)} (quarter to {a['quarter']})",
+                          f"Aggregate EBITDA / revenue of {a['margin_companies']} non-financial Nifty 500 companies in the sector, latest quarter vs a year earlier.",
+                          dm, "pp YoY", "positive" if dm > 0 else "negative", "nse_financials", docs[0], docs)
+
+    def production(self):
+        from ingest_industry import iip_sectors
+        R = RULES["iip_sector_3m"]
+        last = self.q("SELECT max(period_end) FROM observations WHERE metric='iip_yoy_pct_b2022'")[0][0]
+        if not last:
+            return
+        months = [r[0] for r in self.q("SELECT DISTINCT period_end FROM observations WHERE metric='iip_yoy_pct_b2022' ORDER BY period_end DESC LIMIT 3")]
+        by = defaultdict(list)
+        for key, in self.q("SELECT DISTINCT entity_id FROM observations WHERE metric='iip_yoy_pct_b2022' AND period_end=?", last):
+            vals = self.q(f"SELECT value, obs_id, doc_id FROM observations WHERE metric='iip_yoy_pct_b2022' AND entity_id=? AND period_end IN ({','.join('?' * len(months))})", key, *months)
+            if len(vals) < 3 or any(v[0] is None for v in vals):
+                continue
+            avg = sum(v[0] for v in vals) / 3
+            for sec in iip_sectors(key):
+                by[sec].append((key, avg, vals))
+        labels = {r[0]: r[1].split(":", 1)[1] for r in self.q("SELECT entity_id, metric FROM observations WHERE metric LIKE 'iip_label:%'")}
+        for sec, items in by.items():
+            avg = sum(i[1] for i in items) / len(items)
+            if R["lo"] < avg < R["hi"]:
+                continue
+            parts = "; ".join(f"{labels.get(k, k).split(' | ')[-1]} {a:+.1f}%" for k, a, _ in items)
+            refs = [v[1] for _, _, vals in items for v in vals]
+            self.emit("iip_sector_3m", "industry", sec, last,
+                      f"Industrial production {avg:+.1f}% YoY (3-month average): {self.iname(sec)} (to {last[:7]})",
+                      f"MoSPI IIP (base 2022-23), average of year-on-year growth for {', '.join(m[:7] for m in sorted(months))} across mapped industries: {parts}. Quick estimates are revised later.",
+                      avg, "% YoY (3m avg)", "positive" if avg >= R["hi"] else "negative", "mospi_iip", items[0][2][0][2], refs)
+
+    def trade(self):
+        from ingest_industry import HS_SECTOR
+        last = self.q("SELECT max(period_end) FROM observations WHERE metric='trade_export_usd_mn'")[0][0]
+        if not last:
+            return
+        prev = f"{int(last[:4]) - 1}{last[4:]}"
+        tot = defaultdict(lambda: {"x1": 0, "x0": 0, "m1": 0, "m0": 0, "ch": [], "refs": [], "doc": None})
+        for metric, k1, k0 in (("trade_export_usd_mn", "x1", "x0"), ("trade_import_usd_mn", "m1", "m0")):
+            for hs, pe, v, oid, d in self.q("SELECT entity_id, period_end, value, obs_id, doc_id FROM observations WHERE metric=? AND period_end IN (?,?)", metric, last, prev):
+                for sec in HS_SECTOR.get(hs, []):
+                    t = tot[sec]; t[k1 if pe == last else k0] += v or 0
+                    if hs not in t["ch"]:
+                        t["ch"].append(hs)
+                    t["refs"].append(oid)
+                    if pe == last and t["doc"] is None:
+                        t["doc"] = d
+        fy = f"FY{int(last[:4]) - 1}-{last[2:4]}"
+        for sec, t in tot.items():
+            R = RULES["trade_export_fy"]
+            if t["x0"] > 0:
+                g = 100 * (t["x1"] / t["x0"] - 1)
+                if not (R["lo"] < g < R["hi"]):
+                    self.emit("trade_export_fy", "industry", sec, last,
+                              f"Exports {g:+.1f}% in {fy}: {self.iname(sec)} (HS {', '.join(sorted(t['ch']))})",
+                              f"India's merchandise exports in mapped HS chapters: US$ {t['x1']:,.0f} mn in {fy} vs US$ {t['x0']:,.0f} mn a year earlier (Ministry of Commerce TradeStat). Chapter-to-sector mapping is a fixed table; a chapter can feed several sectors.",
+                              g, "% YoY (US$)", "positive" if g > 0 else "negative", "tradestat_eidb", t["doc"], t["refs"])
+            R = RULES["trade_import_share"]
+            if (t["x1"] + t["m1"]) >= R["min_trade_usd_mn"] and (t["x0"] + t["m0"]) > 0:
+                s1 = 100 * t["m1"] / (t["x1"] + t["m1"]); s0 = 100 * t["m0"] / (t["x0"] + t["m0"])
+                d = s1 - s0
+                if abs(d) >= R["threshold"]:
+                    self.emit("trade_import_share", "industry", sec, last,
+                              f"Import share of trade {d:+.1f} pp to {s1:.0f}% in {fy}: {self.iname(sec)}",
+                              f"Imports / (imports + exports) in mapped HS chapters ({', '.join(sorted(t['ch']))}): {s1:.1f}% in {fy} vs {s0:.1f}% a year earlier. Imports US$ {t['m1']:,.0f} mn, exports US$ {t['x1']:,.0f} mn. This is a trade-mix measure, not a share of domestic consumption (production values are not in this data).",
+                              d, "pp YoY", "negative" if d > 0 else "positive", "tradestat_eidb", t["doc"], t["refs"])
+
+    def capacity(self):
+        R = RULES["capacity_utilisation"]
+        r = self.q("SELECT period_end, value, obs_id, doc_id FROM observations WHERE metric='obicus_cu_sa_pct' ORDER BY period_end DESC LIMIT 2")
+        if not r or r[0][1] is None:
+            return
+        pe, v, oid, d = r[0]
+        if R["lo"] < v < R["hi"]:
+            return
+        prev = f" (previous quarter {r[1][1]}%)" if len(r) > 1 and r[1][1] is not None else ""
+        self.emit("capacity_utilisation", "market", "india_manufacturing", pe,
+                  f"Manufacturing capacity utilisation {v}% (seasonally adjusted, quarter to {pe})",
+                  f"RBI Order Books, Inventories and Capacity Utilisation Survey: seasonally adjusted capacity utilisation {v}% for the quarter ended {pe}{prev}. Aggregate for responding manufacturers; no sector split is published.",
+                  v, "% capacity utilisation (SA)", "positive" if v >= R["hi"] else "negative", "rbi_obicus", d, [x[2] for x in r])
+
+    def commodities(self):
+        R = RULES["commodity_3m"]
+        for sid, (name, secs) in COMMODITY_SECTORS.items():
+            r = self.q("SELECT period_end, value, obs_id, doc_id FROM observations WHERE metric=? AND value IS NOT NULL ORDER BY period_end DESC LIMIT 4", "fred_" + sid)
+            if len(r) < 4:
+                continue
+            (pe, v1, oid, d), (pe0, v0) = r[0][:4], (r[3][0], r[3][1])
+            if sid.startswith("P") and pe.endswith("-01"):  # IMF monthly averages are dated the 1st: the period is that whole month
+                y, m = int(pe[:4]), int(pe[5:7])
+                pe = (date(y + (m == 12), m % 12 + 1, 1) - timedelta(days=1)).isoformat()
+            if not v0:
+                continue
+            ch = 100 * (v1 / v0 - 1)
+            if abs(ch) < R["threshold"]:
+                continue
+            self.emit("commodity_3m", "commodity", sid, pe,
+                      f"{name} {ch:+.1f}% over 3 months (to {pe[:7]})",
+                      f"{name}: {v1:,.2f} at {pe} vs {v0:,.2f} at {pe0} (FRED series {sid}). Exposed sectors (fixed table): " + "; ".join(f"{self.iname(s)}: {why}" for s, why in secs) + ".",
+                      ch, "% over 3 months", "positive" if ch > 0 else "negative", "fred", d, [x[2] for x in r])
 
 
 def store(con, signals, detected_at=None):
@@ -263,6 +456,9 @@ def relationships(con, signals, ts=None):
     n = 0
     for s in signals:
         rows = [("signal", s["signal_id"], "observed_in", s["entity_type"], s["entity_id"], MECHANISM[s["rule_id"]], s["direction"], s["confidence"], s["doc_id"], s["observed_at"])]
+        if s["entity_type"] == "commodity" and s["entity_id"] in COMMODITY_SECTORS:
+            for sec, why in COMMODITY_SECTORS[s["entity_id"]][1]:
+                rows.append(("commodity", s["entity_id"], "exposes", "industry", sec, why, None, 0.6, None, None))
         if s["entity_type"] == "company":
             r = con.execute("SELECT industry_id FROM companies WHERE company_id=?", (s["entity_id"],)).fetchone()
             if r and r[0]:

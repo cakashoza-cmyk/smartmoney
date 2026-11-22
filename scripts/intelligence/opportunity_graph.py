@@ -18,11 +18,14 @@ HORIZONS = ["1-3y", "3-10y", "5-10y", "10-15y", "10-20y"]
 ROLES = ["supporting", "contradicting", "contextual"]
 COMPANY_ROLES = ["candidate_beneficiary", "candidate_pressured", "context"]
 DIMENSIONS = ["structural_demand", "industry_economics", "competitive_position", "capital_allocation", "company_execution", "valuation"]
-SIGNAL_DIMENSION = {"capital_flow": "capital_allocation", "credit": "capital_allocation", "credit_quality": "industry_economics"}
+SIGNAL_DIMENSION = {"capital_flow": "capital_allocation", "credit": "capital_allocation", "credit_quality": "industry_economics",
+                    # Sprint 2
+                    "structural_demand": "structural_demand", "industry_economics": "industry_economics", "company_execution": "company_execution",
+                    "competitive_position": "competitive_position", "global": "industry_economics"}
 STAGE_CRITERIA = {
     "discovery": "At least one validated supporting signal is linked.",
     "validation": "At least two validated supporting signals from two or more independent sources are linked.",
-    "emergence": "Validation criteria, plus at least one validated company-level supporting signal, at least one recorded confirmation condition, and supporting evidence on structural demand or company execution (not available from Sprint 1 data sources).",
+    "emergence": "Validation criteria, plus at least one validated company-level supporting signal, at least one recorded confirmation condition, and validated supporting evidence on structural demand (industrial production, exports, capacity utilisation) or company execution (reported company results).",
     "investable_review": "Emergence criteria, plus a complete analyst scenario set (probabilities total 100%) and at least one analyst valuation for a linked company.",
 }
 
@@ -223,10 +226,10 @@ class Loader:
         res = {}
         res["discovery"] = {"met": len(sup) >= 1, "why": f"{len(sup)} validated supporting signal(s)"}
         res["validation"] = {"met": len(sup) >= 2 and len(srcs) >= 2, "why": f"{len(sup)} validated supporting signal(s) from {len(srcs)} source(s): {', '.join(sorted(s for s in srcs if s))}"}
-        cov = self.coverage(oid)["dimensions"]
-        dem = cov["structural_demand"] or cov["company_execution"]
+        sup_dims = {SIGNAL_DIMENSION.get(e["signal_type"]) for e in sup}
+        dem = bool(sup_dims & {"structural_demand", "company_execution"})
         res["emergence"] = {"met": res["validation"]["met"] and bool(comp) and bool(detail.get("confirmation_conditions")) and dem,
-                            "why": f"{len(comp)} company-level supporting signal(s); {len(detail.get('confirmation_conditions') or [])} confirmation condition(s); demand/execution evidence: {'yes' if dem else 'none yet (not ingested)'}"}
+                            "why": f"{len(comp)} company-level supporting signal(s); {len(detail.get('confirmation_conditions') or [])} confirmation condition(s); supporting demand/execution evidence: {', '.join(sorted(d for d in sup_dims & {'structural_demand', 'company_execution'})) if dem else 'none linked'}"}
         res["investable_review"] = {"met": res["emergence"]["met"] and full and has_val,
                                     "why": f"complete scenario set: {'yes' if full else 'no'}; analyst valuation linked: {'yes' if has_val else 'no'}"}
         return res
