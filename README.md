@@ -97,7 +97,7 @@ A company counts when several distinct **parent groups** are adding to it, throu
 - the group was a net buyer in bulk/block deals over 90 days.
 
 What is excluded or collapsed:
-- Fund families collapse to their parent (for example, every SBI scheme counts as SBI Funds Management).
+- Fund families collapse to their parent when a name rule exists (for example, every SBI scheme counts as SBI Funds Management). Foreign funds with no rule yet count as their own group, so two unmapped funds of one family could still be counted twice; the rule list grows over time.
 - Trading firms, broker desks, ODI/P-note desks, index funds and ETFs, individuals and corporates are all excluded.
 - Holdings below 1% are invisible, because companies do not disclose them.
 

@@ -462,6 +462,8 @@ class B:
                 rows.append({"company": cid, "symbol": co["symbol"], "name": co["name"], "industry": co["industry_id"], "independent_groups": len(buy), "groups": sorted(buy),
                              "via_shareholding": [], "via_deals": sorted(buy), "domestic_qoq": None, "foreign_qoq": None, "promoter_qoq": None})
         rows.sort(key=lambda r: -r["independent_groups"])
+        for r in rows:
+            r["group_names"] = {g: (self.groups.get(g) or {}).get("name", g) for g in r["groups"]}
         sec = defaultdict(set)
         for r in rows:
             sec[r["industry"] or "unclassified"] |= set(r["groups"])

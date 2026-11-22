@@ -19,6 +19,11 @@ ALLOW = ["not a recommendation to buy, sell or hold any security", "Not a recomm
 def scan(text):
     for a in ALLOW:
         text = text.replace(a, " ")
+    # proper names of disclosed funds (e.g. "XYZ Opportunities Fund", "PI Opportunities AIF") are data, not our wording
+    text = re.sub(r"\bself_\w+", " ", text)
+    text = re.sub(r"\bOPPORTUNIT[A-Z]*\b", " ", text)  # all-caps = holder name exactly as filed with the exchange
+    text = re.sub(r"opportunit\w*[\s_]+(master[\s_]+)?(fund|aif|scheme)", " ", text, flags=re.I)
+    text = re.sub(r'"(Investment Attractiveness|Opportunity Radar|Industry opportunity|Company quality|Investor quality)" is renamed', " ", text, flags=re.I)
     return sorted({m.group(0).lower() for w in WORDS for m in re.finditer(w, text, re.I)})
 
 
