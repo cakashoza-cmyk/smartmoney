@@ -102,9 +102,9 @@ async function route() {
   window.scrollTo(0, 0);
 }
 function freshBar() {
-  const f = META.freshness, names = { listed_equity: 'Listed equity', private_markets: 'Private markets', strategic_fdi: 'FDI', corporate: 'Corporate', credit: 'Credit', policy: 'Policy', global: 'Global', valuation: 'Valuation', paid: 'Paid sources' };
-  $('#fresh').innerHTML = `<span>Built ${esc(META.generated.slice(0, 16).replace('T', ' '))} IST</span>` + Object.entries(f).filter(([c]) => c !== 'paid').map(([c, v]) =>
-    `<span class="${v.stale_sources.length ? 'stale' : ''}" title="${v.working}/${v.total} sources working${v.stale_sources.length ? '; stale: ' + v.stale_sources.join(', ') : ''}">${esc(names[c] || c)}: ${v.last_success ? esc(v.last_success.slice(0, 10)) : 'never'}${v.stale_sources.length ? ' ⚠ stale' : ''}</span>`).join('');
+  const f = META.freshness, names = { public_equity: 'Listed equity', private_markets: 'Private markets', foreign_strategic: 'FDI / strategic', corporate: 'Corporate', credit: 'Credit', government_global: 'Govt & global' };
+  $('#fresh').innerHTML = `<span>Built ${esc(META.generated.slice(0, 16).replace('T', ' '))} IST</span>` + Object.entries(f).filter(([, v]) => v.working > 0).map(([c, v]) =>
+    `<span class="${v.stale_sources.length ? 'st' : ''}" title="${v.working}/${v.total} sources working${v.stale_sources.length ? '; stale: ' + v.stale_sources.join(', ') : ''}">${esc(names[c] || c)}: ${v.last_success ? esc(v.last_success.slice(0, 10)) : 'never'}${v.stale_sources.length ? ' ⚠ stale' : ''}</span>`).join('');
 }
 let SRCH = null;
 async function initSearch() {

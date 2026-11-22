@@ -22,6 +22,7 @@ def scan(text):
     # proper names of disclosed funds (e.g. "XYZ Opportunities Fund", "PI Opportunities AIF") are data, not our wording
     text = re.sub(r"\bself_\w+", " ", text)
     text = re.sub(r"\bOPPORTUNIT[A-Z]*\b", " ", text)  # all-caps = holder name exactly as filed with the exchange
+    text = re.sub(r"(?:\b[A-Z][\w.&'-]*[ \t]+)+Opportunit\w*|\bOpportunit\w*(?:[ \t]+[A-Z][\w.&'-]*)+", " ", text)  # Title-Case fund names
     text = re.sub(r"opportunit\w*[\s_]+(master[\s_]+)?(fund|aif|scheme)", " ", text, flags=re.I)
     text = re.sub(r'"(Investment Attractiveness|Opportunity Radar|Industry opportunity|Company quality|Investor quality)" is renamed', " ", text, flags=re.I)
     return sorted({m.group(0).lower() for w in WORDS for m in re.finditer(w, text, re.I)})
