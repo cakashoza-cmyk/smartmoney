@@ -3,7 +3,7 @@ shots/rendered_*.txt for test/wordcheck.py, screenshots in shots/. Usage: python
 import sys, asyncio
 from playwright.async_api import async_playwright
 BASE = sys.argv[1].rstrip("/") + "/"; OUT = sys.argv[2] if len(sys.argv) > 2 else "shots"
-VIEWS = ["executive", "horizons/1-3y", "horizons/3-10y", "horizons/10-20y", "sectors", "sectors/capital_goods", "investors", "companies", "companies/transactions",
+VIEWS = ["executive", "horizons/1-3y", "horizons/3-10y", "horizons/10-20y", "sectors", "sectors/capital_goods", "investors", "investors/sbi", "funds", "companies", "companies/transactions",
          "global", "credit", "radar", "quality", "sources", "watch", "admin"]
 
 

@@ -4,13 +4,13 @@ bot-protected endpoints). Action words are classified from each agency's own hea
 Lending Radar `ratings_gj.classify_action` (CRISIL). Sector comes from the agency's own industry field where it gives one
 (CARE 'Industry classification', Ind-Ra 'industryName'); for ICRA it is keyword-classified from the 'About the company'
 paragraph and marked as such. Rows go to `debt` (measure='rating_action') like CRISIL."""
-import json, re, subprocess, tempfile, os
+import json, re, subprocess, tempfile, os, time
 from datetime import date, datetime, timedelta
 from common import Http, upsert, insert_new, hid, run
 from ingest_official import CRISIL_IND
 
 UA_NOTE = "public listing"
-EXTRA_IND = [(r"road|toll|annuity|highway|transmission|airport|port\b|infra", "construction"), (r"housing finance|hfc|nbfc|microfin|bank|financ|lending|insurance", "financial_services"),
+EXTRA_IND = [(r"\broads?\b|toll|annuity|highway|airport", "construction"), (r"housing finance|hfc|nbfc|microfin|bank|financ|lending|insurance", "financial_services"),
              (r"renewable|solar|wind|thermal|hydro|power|electric", "power"), (r"hospital|pharma|health|diagnost", "healthcare"),
              (r"telecom|tower", "telecommunication"), (r"oil|gas|petro|refin|lpg|cng", "oil_gas_consumable_fuels"), (r"securiti[sz]ation|ptc|trust\b", None)]
 SECTOR_NAMES = {  # CARE 'Sector' column (NSE/AMFI basic industry tree) -> dashboard industry id
@@ -29,7 +29,7 @@ def map_industry(text):
     if not text:
         return None
     t = text.lower()
-    for rx, ind in EXTRA_IND + CRISIL_IND:
+    for rx, ind in CRISIL_IND + EXTRA_IND:
         if re.search(rx, t):
             return ind
     return None
@@ -169,7 +169,7 @@ def care_sector_kw(text):
     return map_industry(re.sub(r"\s+", " ", m.group(1))[:400]) if m else None
 
 
-def job_care(con, max_pdfs=450):
+def job_care(con, max_pdfs=200):
     h = Http(); sid = "care_ratings"
     seen = {r[0] for r in con.execute("SELECT doc_id FROM source_documents WHERE source_id=?", (sid,))}
     items = h.get(CARE_FEED, headers={"Referer": "https://www.careratings.com/"}, timeout=90).json().get("data") or []
@@ -183,9 +183,13 @@ def job_care(con, max_pdfs=450):
             break
         url = CARE_PDF + x["FileURL"]
         try:
-            txt = _pdf_text(h.get(url, timeout=90, pause=0.6).content, pages=None)
+            txt = _pdf_text(h.get(url, timeout=60, pause=1.0, tries=1).content, pages=None)
+            fails = 0
         except Exception:  # noqa: BLE001
-            errs += 1; continue
+            errs += 1; fails = locals().get("fails", 0) + 1
+            if fails >= 3:  # the site is refusing or slowing us down: stop and continue next week (rate limits respected)
+                break
+            time.sleep(5); continue
         fetched += 1
         act, counted, neg = care_action(txt)
         ind, lab = care_sector(txt)
@@ -206,7 +210,7 @@ def job_care(con, max_pdfs=450):
 
 # ---------------------------------------------------------------- ICRA: public rationale pages (headline) + rationale PDF for directional actions (date, sector)
 ICRA = "https://www.icra.in"
-ICRA_ABOUT = re.compile(r"About the company\s*(.{0,700})", re.S)
+ICRA_ABOUT = re.compile(r"About the (?:company|entity|firm|bank|issuer)s?\s*:?\s*(.{0,700})", re.S | re.I)
 
 
 def job_icra(con, cap=450):
@@ -243,9 +247,12 @@ def job_icra(con, cap=450):
         dt = datetime.strptime(f"{dm.group(1)} {dm.group(2)} {dm.group(3)}", "%B %d %Y").date().isoformat()
         am = ICRA_ABOUT.search(txt)
         about = re.sub(r"\s+", " ", am.group(1))[:400] if am else ""
-        ind = map_industry(about)
-        n += _store(con, sid, f"icra_{i}", f"{ICRA}/Rationale/ShowRationaleReport?Id={i}", title, dt, title.split(":")[0].strip(), ind,
-                    {"action": act, "counted": counted, "negative": neg, "agency_industry": None, "industry_basis": "keyword-classified from ICRA 'About the company'" if ind else None,
+        borrower = re.split(r"[:;]", title)[0].strip()
+        ind = map_industry(about); basis = "keyword-classified from ICRA 'About the company'" if ind else None
+        if not ind:
+            ind = map_industry(borrower); basis = "keyword-classified from the company name" if ind else None
+        n += _store(con, sid, f"icra_{i}", f"{ICRA}/Rationale/ShowRationaleReport?Id={i}", title, dt, borrower, ind,
+                    {"action": act, "counted": counted, "negative": neg, "agency_industry": None, "industry_basis": basis,
                      "heading": title[:300]})
         dir_ += 1
         con.commit()
