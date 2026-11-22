@@ -1,7 +1,7 @@
 """Intelligence layer: rule-based agents, convergence, five scores x three horizons, auditor, JSON/XLSX export.
 No LLM anywhere. Every number traces to observations/transactions/ownership rows with a source document."""
 from __future__ import annotations
-import json, math, re, statistics as st
+import json, math, os, re, statistics as st
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -9,7 +9,7 @@ from common import connect, hid, now, today, ROOT, upsert
 from investors import classify_name
 from registry import GROUPS
 
-EXP = ROOT / "data" / "export"
+EXP = Path(os.environ["SM_EXPORT"]) if os.environ.get("SM_EXPORT") else ROOT / "data" / "export"
 WEIGHTS_FILE = ROOT / "data" / "weights.json"
 TODAY = today()
 INST_CATS = ("mf", "aif", "insurance", "pension", "bank", "nbfc", "other_fi", "swf_domestic", "fpi1", "fpi2", "other_foreign_inst", "swf_foreign")
@@ -19,7 +19,7 @@ CORE_SECTORS = None  # filled from industries table (NSE macro sectors)
 
 DEFAULT_WEIGHTS = {
     "capital_flow": {
-        "1-3y": {"fpi_flow_3m": 25, "inst_share_change_qoq": 20, "inst_breadth_qoq": 20, "deals_net_inst_90d": 15, "new_independent_holders": 10, "bank_credit_fytd": 10},
+        "1-3y": {"fpi_flow_3m": 25, "inst_share_change_qoq": 20, "inst_breadth_qoq": 20, "deals_net_inst_90d": 15, "new_independent_holders": 10, "bank_credit_fytd": 10, "mf_amc_net_breadth_1m": 15},
         "3-10y": {"fpi_flow_persistence_36m": 20, "fpi_flow_12m": 15, "inst_share_change_yoy": 15, "bank_credit_yoy": 20, "aif_sector_growth_yoy": 15, "corporate_capital_events_180d": 15},
         "10-20y": {"fpi_cum_since_2017": 30, "bank_credit_yoy": 20, "aif_sector_growth_yoy": 20, "policy_commitments": 30},
     },
@@ -110,7 +110,15 @@ class B:
     # ------------------------------------------------------------------ re-resolve investor groups (rule changes apply retroactively)
     def reresolve(self):
         from common import slug
+        from ingest_amc import AMCS
+        # AMC scheme portfolios: the parent is the fund house that published the file, never a name rule (an ETF's name would otherwise send it to 'passive vehicles')
+        mf = {r["investor_id"]: AMCS[r["sid"][4:]][1] for r in self.q("""SELECT DISTINCT o.investor_id, sd.source_id sid FROM ownership o JOIN source_documents sd ON sd.doc_id=o.doc_id
+                                                                         WHERE o.holder_category='mf_portfolio'""") if r["sid"][4:] in AMCS}
+        for iid, gid in mf.items():
+            self.con.execute("UPDATE investors SET group_id=?, category='mf_scheme', match_rule='AMC portfolio file (parent = publishing fund house)' WHERE investor_id=? AND (group_id IS NOT ? OR category IS NOT 'mf_scheme')", (gid, iid, gid))
         for r in self.q("SELECT investor_id, name, group_id FROM investors"):
+            if r["investor_id"] in mf or r["investor_id"].startswith("inv_amcgrp_"):
+                continue
             gid, cat, rule = classify_name(r["name"])
             if not gid:
                 gid = "self_" + slug(r["name"])[:60]
@@ -234,6 +242,19 @@ class B:
         self.deal_counts = {"rows": len(rows), "excluded_trading": trading, "excluded_other": indiv}
         return by_co
 
+    # ------------------------------------------------------------------ mutual fund house monthly portfolios
+    def mf(self):
+        import mf_flows
+        self.mf_moves, self.mf_status = mf_flows.compute(self.con)
+        names = {r["company_id"]: (r["symbol"], r["name"]) for r in self.q("SELECT company_id, symbol, name FROM companies")}
+        self.mf_sum = mf_flows.summarise(self.mf_moves, self.mf_status, names, self.ind)
+        m = self.mf_sum["month"]
+        self.mf_new = defaultdict(set)
+        for x in self.mf_moves:
+            if x["cur"] == m and x["kind"] == "new":
+                self.mf_new[x["company"]].add(x["group"])
+        return self.mf_sum
+
     # ------------------------------------------------------------------ sector metrics
     def sector_metrics(self):
         M = {}
@@ -264,6 +285,10 @@ class B:
             M[s]["for_change_qoq"] = st.median(fq) if len(fq) >= 3 else None
             M[s]["new_independent_holders"] = sum(len(c["new_groups"]) for c in cs)
             M[s]["_companies"] = len(cs)
+        # mutual fund houses: net breadth of active-scheme adds/new vs trims/exits, latest month (AMC monthly files)
+        for r in (getattr(self, "mf_sum", None) or {}).get("sectors", []):
+            if r["industry"] in M and r["net_breadth_pct"] is not None:
+                M[r["industry"]]["mf_amc_net_breadth_1m"] = r["net_breadth_pct"]
         # deals
         for cid, gs in self.deal_co.items():
             ind = (self.comp.get(cid) or {}).get("industry") or self.q1("SELECT industry_id FROM companies WHERE company_id=?", cid)
@@ -407,6 +432,16 @@ class B:
                     p["positions"][cid][q] = round(v["pct"], 3)
         for g, cs in self.deal_grp.items():
             prof.setdefault(g, {"positions": defaultdict(dict)})
+        mfp = defaultdict(lambda: {"new": [], "add": [], "trim": [], "exit": [], "held": 0})
+        for x in self.mf_moves:
+            d = mfp[(x["group"], x["cur"])]
+            if x["kind"] == "held":
+                d["held"] += 1
+            else:
+                d[x["kind"]].append({"id": x["company"], "est_cr": x["est_cr"], "value_cr": x["value_cr"]})
+        mf_status = {s["group"]: s for s in self.mf_status}
+        for g in mf_status:
+            prof.setdefault(g, {"positions": defaultdict(dict)})
         out = []
         for g, p in prof.items():
             meta = self.groups.get(g) or {}
@@ -426,7 +461,7 @@ class B:
                         "entities": names, "held": len(held), "new": new, "increased": inc, "decreased": dec, "exited": ex,
                         "persistence_q": r1(st.mean(persist), 2) if persist else None, "sectors": dict(sorted(sectors.items(), key=lambda x: -x[1])),
                         "deal_net_90d_cr": r1(sum(deals.values()), 1) if deals else None, "deal_companies": len(deals),
-                        "positions": {c: qq for c, qq in pos.items()}, "parent_rule": (meta.get("notes") or "")[:140]})
+                        "positions": {c: qq for c, qq in pos.items()}, "parent_rule": (meta.get("notes") or "")[:140], "mf": self._mf_profile(g, mf_status.get(g), mfp)})
         raw = {"new_positions_qoq": {o["id"]: len(o["new"]) for o in out}, "increased_positions_qoq": {o["id"]: len(o["increased"]) for o in out},
                "net_deal_buys_90d": {o["id"]: o["deal_net_90d_cr"] for o in out}, "positions_held_5q": {o["id"]: o["held"] for o in out},
                "persistence_quarters": {o["id"]: o["persistence_q"] for o in out}, "sector_breadth": {o["id"]: len(o["sectors"]) for o in out}}
@@ -442,25 +477,51 @@ class B:
         self.inv = out
         return out
 
+    def _mf_profile(self, g, stt, mfp):
+        if not stt:
+            return None
+        cur = stt["latest"]
+        hold = self.q("""SELECT o.scheme_flag f, count(DISTINCT o.investor_id) schemes, count(DISTINCT o.company_id) cos, sum(o.value_inr_cr) v FROM ownership o JOIN investors i ON i.investor_id=o.investor_id
+                         WHERE i.group_id=? AND o.period_end=? AND o.holder_category='mf_portfolio' GROUP BY 1""", g, cur)
+        secs = defaultdict(float)
+        sec = {x["company"]: x["industry"] for x in self.mf_moves if x["group"] == g}
+        for r in self.q("""SELECT o.company_id c, sum(o.value_inr_cr) v FROM ownership o JOIN investors i ON i.investor_id=o.investor_id
+                           WHERE i.group_id=? AND o.period_end=? AND o.holder_category='mf_portfolio' AND o.scheme_flag='active' GROUP BY 1""", g, cur):
+            secs[sec.get(r["c"]) or (self.comp.get(r["c"]) or {}).get("industry") or "unclassified"] += r["v"] or 0
+        tot = sum(secs.values()) or None
+        d = mfp.get((g, cur)) or {"new": [], "add": [], "trim": [], "exit": [], "held": 0}
+        nmz = getattr(self, "_conames", None) or {r["company_id"]: (r["symbol"], r["name"], r["industry_id"]) for r in self.q("SELECT company_id, symbol, name, industry_id FROM companies")}
+        self._conames = nmz
+        srt = lambda xs, rev: [dict(x, sym=nmz.get(x["id"], (None,))[0], name=nmz.get(x["id"], (None, x["id"]))[1], industry=sec.get(x["id"]))
+                               for x in sorted(xs, key=lambda x: (x["est_cr"] or 0), reverse=rev)[:25]]
+        return {"month": cur, "compared_with": stt.get("compared_with"), "note": stt.get("note"), "source_url": stt.get("url"), "source_id": stt.get("source_id"),
+                "holdings": [dict(r) for r in hold], "counts": stt.get("counts"), "band_pct": self.mf_sum["band_pct"],
+                "new": srt(d["new"], True), "add": srt(d["add"], True), "trim": srt(d["trim"], False), "exit": srt(d["exit"], False),
+                "sector_weights_pct": {s: round(v / tot * 100, 2) for s, v in sorted(secs.items(), key=lambda kv: -kv[1])} if tot else {}}
+
     # ------------------------------------------------------------------ convergence
     def convergence(self):
         rows = []
         for cid, c in self.comp.items():
             shp_new = set(c["new_groups"])
             deal_buy = {g for g, v in self.deal_co.get(cid, {}).items() if v > 0}
-            groups = shp_new | deal_buy
+            mf_new = self.mf_new.get(cid, set())
+            groups = shp_new | deal_buy | mf_new
             if len(groups) >= 2:
                 rows.append({"company": cid, "symbol": c["symbol"], "name": c["name"], "industry": c["industry"], "independent_groups": len(groups),
-                             "groups": sorted(groups), "via_shareholding": sorted(shp_new), "via_deals": sorted(deal_buy),
+                             "groups": sorted(groups), "via_shareholding": sorted(shp_new), "via_deals": sorted(deal_buy), "via_mf": sorted(mf_new),
                              "domestic_qoq": c["dom_qoq"], "foreign_qoq": c["for_qoq"], "promoter_qoq": c["promoter_qoq"]})
-        for cid, gs in self.deal_co.items():  # companies outside the Nifty 500 (deals only)
+        sec_mf = {x["company"]: x["industry"] for x in self.mf_moves}
+        for cid in set(self.deal_co) | set(self.mf_new):  # companies outside the Nifty 500 (deals and fund-house new positions)
             if cid in self.comp:
                 continue
-            buy = {g for g, v in gs.items() if v > 0}
-            if len(buy) >= 2:
+            buy = {g for g, v in self.deal_co.get(cid, {}).items() if v > 0}
+            mf_new = self.mf_new.get(cid, set())
+            if len(buy | mf_new) >= 2:
                 co = self.q("SELECT name, symbol, industry_id FROM companies WHERE company_id=?", cid)[0]
-                rows.append({"company": cid, "symbol": co["symbol"], "name": co["name"], "industry": co["industry_id"], "independent_groups": len(buy), "groups": sorted(buy),
-                             "via_shareholding": [], "via_deals": sorted(buy), "domestic_qoq": None, "foreign_qoq": None, "promoter_qoq": None})
+                rows.append({"company": cid, "symbol": co["symbol"], "name": co["name"], "industry": co["industry_id"] or sec_mf.get(cid), "independent_groups": len(buy | mf_new),
+                             "groups": sorted(buy | mf_new), "via_shareholding": [], "via_deals": sorted(buy), "via_mf": sorted(mf_new),
+                             "domestic_qoq": None, "foreign_qoq": None, "promoter_qoq": None})
         rows.sort(key=lambda r: -r["independent_groups"])
         for r in rows:
             r["group_names"] = {g: (self.groups.get(g) or {}).get("name", g) for g in r["groups"]}
@@ -894,6 +955,15 @@ def export(b: B):
     agg_inv = [{"id": "agg_fpi", "name": "All FPIs (aggregate, NSDL)", "category": "fpi", "note": "Net equity flow by sector from NSDL; no names."},
                {"id": "agg_mf", "name": "All mutual funds (aggregate, AMFI)", "category": "mutual_fund", "note": "Net inflows by scheme category from AMFI."},
                {"id": "agg_aif", "name": "All AIFs (aggregate, SEBI)", "category": "aif", "note": "Commitments, funds raised and investments by AIF category."}]
+    mfs = dict(b.mf_sum)
+    mfs["amc_sources"] = [dict(id=r["source_id"], name=r["name"], status=r["status"], url=r["url"], last_success=r["last_success"], limitations=r["limitations"])
+                          for r in b.q("SELECT source_id, name, status, url, last_success, limitations FROM sources WHERE source_id LIKE 'amc_%' AND source_id!='amc_portfolios' ORDER BY source_id")]
+    mfs["method"] = ("Holdings of each fund house's ACTIVE schemes are added up per stock and compared between two consecutive month-end portfolio files. "
+                     f"new = not held last month; exit = no longer held; add/trim = shares held up/down by {b.mf_sum['band_pct']:.0f}% or more; smaller changes count as held "
+                     "(fund inflows and outflows move every holding a little). Index funds, ETFs and arbitrage funds are left out. Splits and bonuses are detected from the files "
+                     "(share count up and price down together) and the earlier quantity is adjusted. Rupee amounts are estimates (share change x month-end price in the file). "
+                     "Sector for stocks outside the Nifty 500 uses the industry most Nifty 500 stocks with the same AMC industry label belong to.")
+    jdump("mf.json", mfs)
     jdump("investors.json", {"groups": inv, "aggregates": agg_inv, "convergence": b.conv[:300], "q_cur": b.q_cur, "q_prev": b.q_prev,
                              "rules": "Names are mapped to parent groups by fixed name rules (registry.py). Funds of one family count once. Trading desks, brokers, ODI/P-note desks, index funds/ETFs and individuals are excluded from convergence and activity counts. Below-1% holdings are not disclosed by companies and are invisible here."})
 
@@ -951,7 +1021,7 @@ def export(b: B):
     newent.sort(key=lambda x: -len(x["groups"]))
     hz = {"methods": TAB_METHOD,
           "1-3y": {"ranking": rank("capital_flow", "1-3y"), "accumulation": [c["id"] for c in top_co], "rotation": rot, "new_entries": newent[:40], "amfi": amfi_cat,
-                   "deals": big_deals[:20], "fii": exe["fii"][-60:], "dii": exe["dii"][-60:], "fpi_total": exe["fpi_total"][-48:]},
+                   "deals": big_deals[:20], "mf": {k: b.mf_sum.get(k) for k in ("month", "groups_compared", "band_pct")} | {"sectors": b.mf_sum["sectors"][:30], "most_added": b.mf_sum["most_added"][:15], "most_reduced": b.mf_sum["most_reduced"][:15]}, "fii": exe["fii"][-60:], "dii": exe["dii"][-60:], "fpi_total": exe["fpi_total"][-48:]},
           "3-10y": {"ranking": rank("capital_flow", "3-10y"), "industry_evidence": rank("industry_evidence", "3-10y"),
                     "credit": sorted([dict(code=r["entity_id"][5:], name=r["name"], yoy=r["yoy"], outstanding=r["amt"], industry=r["industry_id"]) for r in b.sibc_rows if r["yoy"] is not None], key=lambda r: -r["yoy"]),
                     "aif": aif, "capital_events": [e for e in events if e["type"] in ("corporate_capex", "acquisition", "joint_venture", "merger")][:40],
@@ -989,6 +1059,7 @@ def export(b: B):
     cr = {"sibc": [dict(code=r["entity_id"][5:], name=r["name"], outstanding=r["amt"], yoy=r["yoy"], fy=r["fy"], industry=r["industry_id"]) for r in b.sibc_rows],
           "sibc_last": b.sibc_last, "sibc_history": defaultdict(list),
           "ratings": {s: v for s, v in b.ratings.items()},
+          "agencies": rating_agencies(b),
           "recent_actions": b.q("SELECT d.period, d.borrower, d.industry_id, d.detail, sd.url FROM debt d LEFT JOIN source_documents sd ON sd.doc_id=d.doc_id WHERE d.source_id='crisil_ratings' AND (d.detail LIKE '%\"action\": \"upgrade%' OR d.detail LIKE '%downgrade%' OR d.detail LIKE '%default%') ORDER BY d.period DESC LIMIT 150"),
           "debt_raised": b.q("SELECT t.announcement_date d, co.symbol sym, co.name cn, t.amount_inr_cr a, substr(t.description,1,200) x, sd.url u FROM transactions t JOIN companies co ON co.company_id=t.company_id LEFT JOIN source_documents sd ON sd.doc_id=t.doc_id WHERE t.txn_type='capital_raised' ORDER BY d DESC LIMIT 60"),
           "not_available": ["sanctioned vs disbursed credit by sector", "project finance sanctions", "NBFC on-lending by end sector", "refinancing vs new productive lending split"]}
@@ -1107,9 +1178,34 @@ def xlsx(b, sectors, attn, events, comm):
     wb.save(EXP / "smartmoney.xlsx")
 
 
+AGENCIES = [("crisil_ratings", "CRISIL"), ("icra_ratings", "ICRA"), ("care_ratings", "CARE"), ("indra_ratings", "India Ratings")]
+
+
+def rating_agencies(b, days=365):
+    """Upgrades / downgrades by sector per agency (12 months). Agencies differ in what they publish, so each is shown on its own and never summed."""
+    since = (TODAY - timedelta(days=days)).isoformat()
+    out = {}
+    for sid, name in AGENCIES:
+        bys = defaultdict(lambda: {"up": 0, "down": 0, "default": 0, "outlook_neg": 0, "outlook_pos": 0, "watch_neg": 0, "rows": 0})
+        n = 0; first = last = None
+        for r in b.q("SELECT industry_id, period, detail FROM debt WHERE source_id=? AND period>=?", sid, since):
+            d = json.loads(r["detail"]); a = d.get("action", "")
+            n += 1; first = min(first or r["period"], r["period"]); last = max(last or r["period"], r["period"])
+            x = bys[r["industry_id"] or "unclassified"]; x["rows"] += 1
+            x["up"] += a == "upgrade"; x["down"] += a in ("downgrade", "downgrade_inc"); x["default"] += a == "default"
+            x["outlook_neg"] += a == "outlook_negative"; x["outlook_pos"] += a == "outlook_positive"; x["watch_neg"] += a == "watch_negative"
+        recent = b.q("""SELECT d.period, d.borrower, d.industry_id, json_extract(d.detail,'$.action') action, json_extract(d.detail,'$.industry_basis') basis, sd.url FROM debt d
+                        LEFT JOIN source_documents sd ON sd.doc_id=d.doc_id WHERE d.source_id=? AND json_extract(d.detail,'$.action') IN ('upgrade','downgrade','downgrade_inc','default')
+                        ORDER BY d.period DESC LIMIT 60""", sid)
+        src = b.q("SELECT status, last_success, limitations FROM sources WHERE source_id=?", sid)
+        out[sid] = {"name": name, "rows": n, "from": first, "to": last, "status": src[0]["status"] if src else None, "limitations": src[0]["limitations"] if src else None,
+                    "by_sector": {s: v for s, v in sorted(bys.items(), key=lambda kv: -(kv[1]["up"] + kv[1]["down"] + kv[1]["default"]))}, "recent": recent}
+    return out
+
+
 def main():
     b = B()
-    b.fixups(); b.reresolve(); b.fpi(); b.ownership(); b.deals(); b.sector_metrics(); b.score_sectors(); b.score_companies(); b.investors(); b.convergence(); b.agents()
+    b.fixups(); b.reresolve(); b.fpi(); b.ownership(); b.deals(); b.mf(); b.sector_metrics(); b.score_sectors(); b.score_companies(); b.investors(); b.convergence(); b.agents()
     b.con.commit()
     export(b)
     print("built", now(), "quarters", b.quarters[-3:], "conclusions", len(b.conclusions), "convergence", len(b.conv))

@@ -184,12 +184,40 @@ def list_sbi(h, months=7):
     return out
 
 
+def render_html(url, wait_ms=7000):
+    """Public page whose links are written by its own script: load it once in headless Chrome (as a visitor's browser would)."""
+    import os
+    from playwright.sync_api import sync_playwright
+    exe = os.environ.get("CHROME_PATH") or next((p for p in ("/usr/bin/google-chrome", "/usr/bin/chromium-browser", "/usr/bin/chromium") if os.path.exists(p)), None)
+    with sync_playwright() as p:
+        b = p.chromium.launch(executable_path=exe, headless=True) if exe else p.chromium.launch(headless=True)
+        pg = b.new_page()
+        pg.goto(url, timeout=90000); pg.wait_for_timeout(wait_ms)
+        html = pg.content(); b.close()
+    return html
+
+
+def list_absl(h):
+    base = "https://mutualfund.adityabirlacapital.com"
+    t = render_html(base + "/forms-and-downloads/portfolio")
+    out = []
+    for u in _links(t, base):
+        if "/monthly-portfolio/" not in u.lower():
+            continue
+        f = u.rsplit("/", 1)[-1].lower()
+        m = re.search(r"(\d{2})(\d{2})(20\d{2})", f)  # 31102026_abslmf_...
+        p = month_end(int(m.group(3)), int(m.group(2))) if m and 1 <= int(m.group(2)) <= 12 else date_from_text(f.replace("--", "-"))
+        out.append((p, u))
+    return out
+
+
 MULTI_FILE = {"ppfas"}  # AMCs that publish one file per scheme each month
 
 AMCS = {  # amc_id: (display name, parent group id in registry.GROUPS, lister or None, page url, status note if not built/blocked)
     "nippon": ("Nippon India Mutual Fund", "nippon", list_nippon, "https://mf.nipponindiaim.com/investor-service/downloads/factsheet-portfolio-and-other-disclosures", None),
     "dsp": ("DSP Mutual Fund", "dsp", list_dsp, "https://www.dspim.com/mandatory-disclosures/portfolio-disclosures", None),
     "sbi": ("SBI Mutual Fund", "sbi", list_sbi, "https://www.sbimf.com/portfolios", None),
+    "absl": ("Aditya Birla Sun Life Mutual Fund", "aditya_birla", list_absl, "https://mutualfund.adityabirlacapital.com/forms-and-downloads/portfolio", None),
     "ppfas": ("PPFAS Mutual Fund", "ppfas", list_ppfas, "https://amc.ppfas.com/downloads/portfolio-disclosure/", None),
 }
 
@@ -234,7 +262,7 @@ def ingest_file(con, h, amc_id, period, url, known=None):
         schemes += 1
         flag = scheme_flag(scheme)
         iid = "inv_" + slug(name + " " + scheme)[:90]
-        upsert(con, "investors", dict(investor_id=iid, name=scheme, group_id=gid, match_rule=f"AMC portfolio file of {name}"), "investor_id")
+        upsert(con, "investors", dict(investor_id=iid, name=scheme, group_id=gid, category="mf_scheme", match_rule=f"AMC portfolio file of {name}"), "investor_id")
         agg = {}
         for x in rows:
             if x["isin"] not in agg:

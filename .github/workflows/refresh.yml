@@ -5,10 +5,12 @@ on:
     - cron: "30 13 * * 1-5"   # 19:00 IST Mon-Fri: daily group (NSE FII/DII, bulk/block deals, announcements, PIB, CRISIL, FRED, sector P/E) + NSDL fortnightly check
     - cron: "30 0 * * 0"      # 06:00 IST Sunday: monthly group (universe, AMFI, RBI SIBC, SEBI AIF, DPIIT probe) + quarterly shareholding patterns (incremental, catches late filers)
     - cron: "0 2 5 * *"       # 07:30 IST on the 5th: annual group (World Bank WDI)
+    - cron: "0 3 10-12 * *"   # 08:30 IST on the 10th-12th: AMC monthly scheme portfolio files (SEBI deadline is the 10th; re-runs skip files already loaded)
+    - cron: "0 4 * * 6"       # 09:30 IST Saturday: weekly rating actions (ICRA, CARE, India Ratings)
   workflow_dispatch:
     inputs:
       groups:
-        description: "Groups to run: daily fortnightly monthly quarterly annual all"
+        description: "Groups to run: daily fortnightly monthly quarterly annual amc ratings all"
         default: "daily fortnightly"
 permissions:
   contents: write
@@ -27,7 +29,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install --quiet requests pandas lxml openpyxl xlrd
+      - run: pip install --quiet requests pandas lxml openpyxl xlrd pyxlsb playwright
+      - run: sudo apt-get install -y -qq poppler-utils >/dev/null   # pdftotext for rating press-release PDFs
       - name: Pick groups
         id: g
         run: |
@@ -35,6 +38,8 @@ jobs:
             "30 13 * * 1-5") G="daily fortnightly" ;;
             "30 0 * * 0") G="monthly quarterly" ;;
             "0 2 5 * *") G="annual" ;;
+            "0 3 10-12 * *") G="amc" ;;
+            "0 4 * * 6") G="ratings" ;;
             *) G="${{ github.event.inputs.groups || 'daily fortnightly' }}" ;;
           esac
           echo "groups=$G" >> "$GITHUB_OUTPUT"; echo "Running: $G"
