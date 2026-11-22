@@ -64,10 +64,10 @@ def _cells(row):
     return [html.unescape(re.sub(r"<[^>]+>|\s+", " ", c)).strip() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S)]
 
 
-def _label(con, source_id, prefix, entity_type, key, text):
+def _label(con, source_id, prefix, entity_type, key, text, doc_id=None):
     """Human label for a code (HS chapter, IIP industry) kept as a valueless observation row, so no schema change is needed."""
-    con.execute("INSERT OR REPLACE INTO observations(obs_id, source_id, metric, entity_type, entity_id, period_end, value, unit, evidence_label) VALUES (?,?,?,?,?,?,?,?,?)",
-                (f"{prefix}_{key}", source_id, f"{prefix}:" + text[:200], entity_type, key, "2000-01-01", None, None, "VERIFIED FACT"))
+    con.execute("INSERT OR REPLACE INTO observations(obs_id, source_id, metric, entity_type, entity_id, period_end, value, unit, evidence_label, doc_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (f"{prefix}_{key}", source_id, f"{prefix}:" + text[:200], entity_type, key, "2000-01-01", None, None, "VERIFIED FACT", doc_id))
 
 
 # ---------------------------------------------------------------- TradeStat (Ministry of Commerce)
@@ -111,11 +111,11 @@ def job_tradestat(con, years=(2025, 2023, 2021, 2019)):
                         continue
                     s, e = _fy(fy)
                     obs(con, "tradestat_eidb", f"trade_{kind}_usd_mn", "hs_chapter", r["hs"], e, r[fy], "US$ mn", period_start=s, doc_id=d)
-                    names[r["hs"]] = r["name"]; n += 1
+                    names[r["hs"]] = (r["name"], d); n += 1
                     latest = max(latest or e, e)
             time.sleep(2)
-    for hs, nm in names.items():
-        _label(con, "tradestat_eidb", "hs_name", "hs_chapter", hs, nm)
+    for hs, (nm, dd) in names.items():
+        _label(con, "tradestat_eidb", "hs_name", "hs_chapter", hs, nm, dd)
     con.commit()
     if not n:
         raise ValueError("TradeStat returned no rows")
@@ -196,7 +196,7 @@ def job_iip(con, plan=None):
                 if not m:
                     continue
                 k = iip_key(r); pe = _month_end(int(r["year"]), m); b = base[:4]
-                labels[k] = " | ".join(x for x in (r.get("type"), r.get("category"), r.get("sub_category")) if x)
+                labels[k] = (" | ".join(x for x in (r.get("type"), r.get("category"), r.get("sub_category")) if x), d)
                 if num(r.get("index")) is not None:
                     obs(con, "mospi_iip", f"iip_index_b{b}", "iip_industry", k, pe, num(r["index"]), "index", doc_id=d); n += 1
                 if num(r.get("growth_rate")) is not None:
@@ -207,8 +207,8 @@ def job_iip(con, plan=None):
                 break
             p += 1
             time.sleep(0.8)
-    for k, lab in labels.items():
-        _label(con, "mospi_iip", "iip_label", "iip_industry", k, lab)
+    for k, (lab, dd) in labels.items():
+        _label(con, "mospi_iip", "iip_label", "iip_industry", k, lab, dd)
     con.commit()
     if not n:
         raise ValueError("MoSPI IIP returned no rows")
