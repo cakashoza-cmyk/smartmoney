@@ -13,6 +13,9 @@ on:
       groups:
         description: "Groups to run: daily fortnightly monthly quarterly annual amc ratings fundamentals all"
         default: "daily fortnightly"
+      fin_budget_min:
+        description: "Minutes the company-results run may spend (blank = 75)"
+        default: ""
 permissions:
   contents: write
 concurrency:
@@ -25,6 +28,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TZ: Asia/Kolkata
+      SM_FIN_BUDGET_MIN: ${{ github.event.inputs.fin_budget_min }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
