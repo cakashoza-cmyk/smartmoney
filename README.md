@@ -157,3 +157,23 @@ What is excluded or collapsed:
 ## Rating actions (four agencies)
 
 CRISIL, ICRA, CARE and India Ratings are separate sources and are never summed: they rate different issuers and publish in different forms. The Credit page shows upgrades, downgrades, defaults and outlook/watch changes by sector for each agency. The 1-3y industry-evidence score keeps using CRISIL only, because it is the one source with the full 12-month action history including reaffirmations.
+
+## Smart Money Intelligence 2.0 (Sprint 1)
+
+> For educational and research purposes only; not investment advice; users must make their own decisions under their own registrations.
+
+New screens:
+- **Signals:** rule-based changes, each with an observed date and a detected date.
+- **Opportunity Discovery:** analyst research hypotheses with linked evidence.
+- **Opportunity Dossier**
+- **Investable review**
+- **Valuation Lab:** reported data kept separate from analyst assumptions, plus a reverse DCF at 15%, 20% and 25%.
+- **Thesis Monitor:** append-only stage history.
+- **Analyst workspace**
+
+How it works:
+- Schema changes are versioned migrations in `migrations/`, recorded in `schema_migrations`.
+- Hypotheses live in `data/analyst/opportunities.json` and change only through a reviewed pull request. The pipeline never creates, scores or promotes one.
+- There is no composite score.
+
+Design, rules, stage criteria and limitations: [docs/SMART_MONEY_INTELLIGENCE_2.0.md](docs/SMART_MONEY_INTELLIGENCE_2.0.md).
