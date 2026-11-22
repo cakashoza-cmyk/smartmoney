@@ -29,8 +29,8 @@ RULES = {
     "inst_share_company": {"type": "capital_flow", "source": "nse_shp", "threshold": 3.0, "fresh_days": 200, "confidence": 0.85,
                            "text": "Institutional holding of a Nifty 500 company changed by 3 percentage points or more quarter on quarter (NSE shareholding pattern)."},
     # ---- Sprint 2: fundamentals, production, trade, capacity, global
-    "fin_company_quarter": {"type": "company_execution", "source": "nse_financials", "rev_hi": 20.0, "rev_lo": -10.0, "margin_lo": -5.0, "fresh_days": 150, "confidence": 0.85,
-                            "text": "Nifty 500 company, latest reported quarter vs the same quarter a year earlier (same basis): revenue +20% or more with EBITDA margin not lower (lenders/insurers: profit after tax +20% or more), or revenue -10% or less, or EBITDA margin down 5 pp or more. Not emitted when revenue rose 25%+ while margin fell 5 pp+ at the same time (usually a presentation change such as duties included in revenue)."},
+    "fin_company_quarter": {"type": "company_execution", "source": "nse_financials", "rev_hi": 20.0, "rev_lo": -10.0, "margin_lo": -5.0, "min_base_cr": 100, "fresh_days": 150, "confidence": 0.85,
+                            "text": "Nifty 500 company, latest reported quarter vs the same quarter a year earlier (same basis): revenue +20% or more with EBITDA margin not lower (lenders/insurers: profit after tax +20% or more), or revenue -10% or less, or EBITDA margin down 5 pp or more. Not emitted when revenue rose 25%+ while margin fell 5 pp+ at the same time (usually a presentation change such as duties included in revenue), or when year-ago quarterly revenue was below Rs 100 crore (small-base effects). A quarter tagged only as year-to-date is derived from year-to-date differences."},
     "fin_sector_revenue": {"type": "industry_economics", "source": "nse_financials", "hi": 15.0, "lo": 0.0, "min_companies": 5, "fresh_days": 150, "confidence": 0.8,
                            "text": "Sum of the sector's Nifty 500 company revenues in the latest quarter vs the same quarter a year earlier (companies with both quarters, 5 or more) grew 15% or more, or did not grow."},
     "fin_sector_margin": {"type": "industry_economics", "source": "nse_financials", "threshold": 1.5, "min_companies": 5, "fresh_days": 150, "confidence": 0.75,
@@ -297,7 +297,7 @@ class Detector:
         R = RULES["fin_company_quarter"]
         for cid, m in metrics.items():
             q = m["q"]; g = q.get("revenue_yoy_pct"); dm = q.get("ebitda_margin_change_pp")
-            if g is None:
+            if g is None or (q.get("year_ago_revenue_cr") or 0) < R["min_base_cr"]:
                 continue
             doc = self.q("SELECT doc_id FROM company_financials WHERE company_id=? AND period_end=? AND basis=? ORDER BY period_type", cid, m["latest_quarter"], m["basis"])
             doc = doc[0][0] if doc else None

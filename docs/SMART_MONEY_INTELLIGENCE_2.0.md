@@ -170,7 +170,7 @@ The six dimensions are structural demand, industry economics, competitive positi
 
 | Rule | Type → dimension | Threshold |
 |---|---|---|
-| `fin_company_quarter` | company_execution → Company execution | Revenue +20% with the margin not lower, or revenue −10%, or margin −5 pp. Mixed cases (revenue +25% and margin −5 pp together) are not emitted. |
+| `fin_company_quarter` | company_execution → Company execution | Revenue +20% with the margin not lower, or revenue −10%, or margin −5 pp. Not emitted for mixed cases (revenue +25% and margin −5 pp together) or when year-ago revenue was below ₹100 cr. |
 | `fin_sector_revenue` | industry_economics → Industry economics | Sector revenue ≥ +15% or ≤ 0% YoY (5+ companies) |
 | `fin_sector_margin` | industry_economics | Aggregate EBITDA margin ± 1.5 pp YoY (5+ companies) |
 | `iip_sector_3m` | structural_demand → Structural demand | 3-month average IIP YoY ≥ 8% or ≤ −2% |
