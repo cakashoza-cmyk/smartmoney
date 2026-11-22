@@ -25,6 +25,23 @@ SCALE = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+", "BBB", "BBB-", "BB+
 ST_SCALE = ["A1+", "A1", "A2+", "A2", "A3+", "A3", "A4+", "A4", "D"]
 
 
+INDRA_NAMES = {  # India Ratings' own industry field, exact names -> dashboard industry id ('Others', 'Securitisation' stay unclassified)
+    "diversified": "diversified", "industrial products": "capital_goods", "other industrial products": "capital_goods",
+    "breweries & distilleries": "fast_moving_consumer_goods", "diversified commercial services": "services", "packaging": "forest_materials",
+    "urban local bodies": "sovereign", "development authority": "sovereign", "animal feed": "agriculture_and_allied", "aerospace & defense": "capital_goods",
+    "other utilities": "utilities", "ferro & silica manganese": "metals_mining", "coal": "oil_gas_consumable_fuels", "railways": "infrastructure_cross_sector",
+    "industrial minerals": "metals_mining", "it enabled services": "information_technology", "speciality retail": "consumer_services",
+    "consumer electronics": "consumer_durables", "forest products": "forest_materials", "diversified retail": "consumer_services",
+    "castings & forgings": "capital_goods", "diversified fmcg": "fast_moving_consumer_goods", "tyres & rubber products": "automobile_and_auto_components",
+    "personal care": "fast_moving_consumer_goods", "holding company": "financial_services", "diversified consumer products": "consumer_durables",
+    "consulting services": "services", "stockbroking & allied": "financial_services",
+}
+
+
+def map_indra(name):
+    return INDRA_NAMES.get((name or "").strip().lower()) or map_industry(name)
+
+
 def map_industry(text):
     if not text:
         return None
@@ -102,7 +119,7 @@ def job_indra(con, days=365, max_pages=400):
                     continue
                 url = f"https://www.indiaratings.co.in/pressrelease/{x.get('urlKey')}"
                 iname = x.get("industryName")
-                n += _store(con, sid, "indra_" + str(x.get("pressReleaseID")), url, title, dt, x.get("issuerName"), map_industry(iname),
+                n += _store(con, sid, "indra_" + str(x.get("pressReleaseID")), url, title, dt, x.get("issuerName"), map_indra(iname),
                             {"action": act, "counted": counted, "negative": neg, "agency_industry": iname, "industry_basis": "agency industry field", "heading": title[:300]})
             con.commit()
             if min((x.get("effectiveDate") or "9")[:10] for x in dd) < stop:
