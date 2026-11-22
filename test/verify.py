@@ -29,7 +29,7 @@ async def run(b, label, vp, mobile, errs, views):
         if v.startswith(PROMINENT) and not await pg.evaluate("!!document.querySelector('#app .edu.big')"):
             errs.append(f"{label} {v}: prominent disclosure missing")
         print(f"{label} {v}: {len(txt)} chars | {txt[:160]!r}")
-        alltxt.append(f"=== {v}\n{txt}")
+        alltxt.append(f"=== #/{v}\n{txt}")
         await pg.screenshot(path=f"{OUT}/{label}_{v.replace('/', '_')}.png", full_page=(v in ("executive", "sectors", "horizons/10-20y") or v.startswith(("opportunities", "thesis", "investable"))))
     # company detail from the first link on the companies page
     await pg.goto(BASE + "#/companies", wait_until="networkidle"); await pg.wait_for_timeout(800)
