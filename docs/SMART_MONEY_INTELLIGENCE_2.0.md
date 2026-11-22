@@ -191,6 +191,8 @@ The six dimensions are structural demand, industry economics, competitive positi
 - OBICUS is aggregate manufacturing only, with no sector split.
 - Global: WTO and EIA need free API keys, which have not been added; IMF DataMapper is blocked (403).
 
+**Coverage widening.** The weekly `fundamentals` run (Wednesday 07:00 IST) is incremental: companies with no stored results are fetched first, and the run stops cleanly after a 75-minute budget (`SM_FIN_BUDGET_MIN`), recording how many companies are left in the extraction log. Each run therefore widens Nifty 500 coverage until it is complete, then only fetches new filings.
+
 ## Next sprints (from the spec)
 
 1. (Done in Sprint 2: trade, production, capacity and company financials; see above.)

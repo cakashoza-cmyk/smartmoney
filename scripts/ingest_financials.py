@@ -177,7 +177,11 @@ def universe(con):
     return [r for r in con.execute("SELECT company_id, symbol FROM companies WHERE index_membership LIKE 'NIFTY 500%' AND symbol IS NOT NULL ORDER BY symbol")]
 
 
-def job(con, limit=None, symbols=None, pause=0.6):
+def job(con, limit=None, symbols=None, pause=0.6, budget_min=None):
+    """Incremental: only filings not yet loaded are fetched. Companies with no stored results go first, and the run stops
+    cleanly after budget_min minutes (env SM_FIN_BUDGET_MIN, default 75) so a scheduled run widens coverage step by step."""
+    import os as _os, time as _t
+    budget = float(budget_min or _os.environ.get("SM_FIN_BUDGET_MIN") or 75) * 60; t0 = _t.time(); stopped = None
     h = Http(nse=True)
     # rows stored before the quarter-context fix: a 'quarter' spanning 6/9/12 months is a year-to-date figure
     con.execute("UPDATE OR IGNORE company_financials SET period_type='YTD' WHERE period_type='Q' AND months<>3 AND substr(period_start,6)='04-01'")
@@ -186,10 +190,14 @@ def job(con, limit=None, symbols=None, pause=0.6):
     uni = universe(con)
     if symbols:
         uni = [u for u in uni if u[1] in symbols]
+    have = {r[0] for r in con.execute("SELECT DISTINCT company_id FROM company_financials")}
+    uni = [u for u in uni if u[0] not in have] + [u for u in uni if u[0] in have]
     if limit:
         uni = uni[:limit]
     n_new = n_files = fails = consecutive = 0; latest = None; skipped = 0
     for i, (cid, sym) in enumerate(uni):
+        if _t.time() - t0 > budget:
+            stopped = i; print(f"time budget reached after {i} companies", flush=True); break
         try:
             lst = h.get(LIST.format(sym=sym.replace("&", "%26")), tries=2, pause=pause).json().get("data") or []
             consecutive = 0
@@ -232,7 +240,8 @@ def job(con, limit=None, symbols=None, pause=0.6):
     if not n_files and not skipped:
         raise ValueError("no XBRL filings parsed")
     return {"rows_in": len(uni), "rows_new": n_new, "dup": skipped, "period": latest,
-            "warn": f"{fails} fetch/parse failures" if fails else None}
+            "warn": "; ".join(x for x in (f"{fails} fetch/parse failures" if fails else "",
+                                          f"time budget reached: {len(uni) - stopped} companies left for the next run" if stopped is not None else "") if x) or None}
 
 
 if __name__ == "__main__":
