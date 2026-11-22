@@ -181,7 +181,7 @@ class B:
         for r in self.q("SELECT company_id, period_end, holder_category, pct FROM ownership WHERE holder_name IS NULL AND pct IS NOT NULL"):
             own[r["company_id"]].setdefault(r["period_end"], {})[r["holder_category"]] = r["pct"]
         named = defaultdict(lambda: defaultdict(dict))
-        for r in self.q("SELECT o.company_id, o.period_end, o.holder_name, o.pct, o.holder_category, i.group_id, o.doc_id FROM ownership o JOIN investors i ON i.investor_id=o.investor_id WHERE o.holder_name IS NOT NULL"):
+        for r in self.q("SELECT o.company_id, o.period_end, o.holder_name, o.pct, o.holder_category, i.group_id, o.doc_id FROM ownership o JOIN investors i ON i.investor_id=o.investor_id WHERE o.holder_name IS NOT NULL AND o.holder_category LIKE 'named:%'"):
             if self.excluded_group(r["group_id"]) or r["holder_category"] in ("named:ForeignDirectInvestment",):
                 continue
             g = named[r["company_id"]][r["period_end"]]
@@ -503,7 +503,7 @@ class B:
         for o in self.inv[:6]:
             if not (o["new"] or o["increased"]):
                 continue
-            refs = [d for c in (o["new"] + o["increased"])[:5] for d in [self.q1("SELECT doc_id FROM ownership o JOIN investors i ON i.investor_id=o.investor_id WHERE i.group_id=? AND o.company_id=? AND o.period_end=? LIMIT 1", o["id"], c, self.q_cur)] if d]
+            refs = [d for c in (o["new"] + o["increased"])[:5] for d in [self.q1("SELECT doc_id FROM ownership o JOIN investors i ON i.investor_id=o.investor_id WHERE i.group_id=? AND o.company_id=? AND o.period_end=? AND o.holder_category LIKE 'named:%' LIMIT 1", o["id"], c, self.q_cur)] if d]
             self.add("Investor Behaviour Analyst", "1-3y", "investor_group", o["id"],
                      f"{o['name']}: {len(o['new'])} new and {len(o['increased'])} increased above-1% holdings in Nifty 500 companies in the quarter to {self.q_cur} (fund family counted once).",
                      "VERIFIED FACT", refs, [f"{len(o['decreased'])} holdings reduced, {len(o['exited'])} dropped below 1% or exited"] if (o["decreased"] or o["exited"]) else [], "high")
@@ -853,7 +853,7 @@ def export(b: B):
         hist = {q: {k: v for k, v in d.items() if k in INST_CATS + ("promoter", "public", "fdi", "govt", "bodies_corporate", "retail_small", "retail_large", "nri", "promoter_summary", "public_summary")} for q, d in o.items()}
         named = {q: [{"group": g, "gname": gname(g), "pct": round(v["pct"], 3), "names": v["names"]} for g, v in sorted(gs.items(), key=lambda x: -x[1]["pct"])]
                  for q, gs in b.named.get(cid, {}).items()}
-        docs = {r["period_end"]: r["url"] for r in b.q("SELECT DISTINCT o.period_end, sd.url FROM ownership o JOIN source_documents sd ON sd.doc_id=o.doc_id WHERE o.company_id=?", cid)}
+        docs = {r["period_end"]: r["url"] for r in b.q("SELECT DISTINCT o.period_end, sd.url FROM ownership o JOIN source_documents sd ON sd.doc_id=o.doc_id WHERE o.company_id=? AND o.holder_category!='mf_portfolio'", cid)}
         tl = b.q("""SELECT t.txn_id id, t.txn_type type, coalesce(t.txn_date,t.announcement_date) d, t.side, t.quantity q, t.price p, t.amount_inr_cr a, i.name inv, i.group_id g, t.description x, t.evidence_label l, sd.url u
                     FROM transactions t LEFT JOIN investors i ON i.investor_id=t.investor_id LEFT JOIN source_documents sd ON sd.doc_id=t.doc_id WHERE t.company_id=? ORDER BY d DESC LIMIT 300""", cid)
         for t in tl:

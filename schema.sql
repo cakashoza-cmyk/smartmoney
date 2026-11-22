@@ -106,11 +106,22 @@ CREATE TABLE IF NOT EXISTS ownership (             -- quarterly shareholding pat
   ownership_id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(company_id),
   period_end TEXT NOT NULL,
-  holder_category TEXT NOT NULL,                   -- promoter | mf | aif | bank | insurance | pension | fpi1 | fpi2 | fdi | swf_domestic | govt | public | ...
+  holder_category TEXT NOT NULL,                   -- mf_portfolio (AMC monthly scheme file) | promoter | mf | aif | bank | insurance | pension | fpi1 | fpi2 | fdi | swf_domestic | govt | public | ...
   holder_name TEXT,                                -- NULL for category totals; name for >1% holders
   investor_id TEXT REFERENCES investors(investor_id),
-  pct REAL,
-  doc_id TEXT REFERENCES source_documents(doc_id)
+  pct REAL,                                        -- % of company (shareholding patterns); NULL for fund portfolio rows
+  doc_id TEXT REFERENCES source_documents(doc_id),
+  quantity REAL,                                   -- fund portfolio rows: shares held by the scheme
+  value_inr_cr REAL,                               -- fund portfolio rows: market value, Rs crore
+  pct_of_nav REAL,                                 -- fund portfolio rows: % of scheme net assets
+  scheme_flag TEXT                                 -- fund portfolio rows: active | passive | arbitrage
+);
+
+CREATE TABLE IF NOT EXISTS company_labels (        -- a source's own classification of a company (e.g. AMFI industry in AMC files)
+  company_id TEXT NOT NULL REFERENCES companies(company_id),
+  source_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  PRIMARY KEY (company_id, source_id)
 );
 
 CREATE TABLE IF NOT EXISTS transactions (          -- every investment event; one id per disclosure, linked when related

@@ -30,7 +30,18 @@ def connect():
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys=OFF")
     con.executescript((ROOT / "schema.sql").read_text())
+    migrate(con)
     return con
+
+
+def migrate(con):
+    """Add columns introduced after a database was first created (CREATE TABLE IF NOT EXISTS does not alter)."""
+    have = {r[1] for r in con.execute("PRAGMA table_info(ownership)")}
+    for col, typ in (("quantity", "REAL"), ("value_inr_cr", "REAL"), ("pct_of_nav", "REAL"), ("scheme_flag", "TEXT")):
+        if col not in have:
+            con.execute(f"ALTER TABLE ownership ADD COLUMN {col} {typ}")
+    con.execute("CREATE INDEX IF NOT EXISTS ix_own_cat_period ON ownership(holder_category, period_end)")
+    con.commit()
 
 
 def upsert(con, table, row, key):
