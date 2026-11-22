@@ -212,14 +212,16 @@ function readA() {
 ROUTES.valuation = async (sym) => {
   const [Vd, C] = await Promise.all([J('v2/valuation.json'), J('companies.json')]);
   const cols = C.cols, rows = C.rows.map(r => Object.fromEntries(cols.map((c, i) => [c, r[i]])));
-  const co = sym ? rows.find(r => r.symbol === sym) : null;
+  const co = sym ? valFind(rows, sym) : null;
+  if (co && co.symbol !== sym) { location.replace('#/valuation/' + encodeURIComponent(co.symbol)); return; }
+  VAL_ROWS = rows;
   const draft = store.get('valdraft_' + (sym || ''), null);
   const pr = co ? Vd.reported_price[co.id] : null, spe = co ? Vd.sector_pe[co.industry] : null;
   const val = (k, u) => { const v = draft && draft.a ? draft.a[k] : null; return v == null ? '' : (u === '%' ? +(v * 100).toFixed(4) : v); };
   const pub = Vd.valuations.filter(v => !co || v.company_id === co.id);
   page(`<h1>Valuation Lab</h1>${eduBig()}
-  <div class="card noprint flt"><label>Company <input id="v_co" list="v_list" placeholder="Type a symbol, e.g. ITC" value="${esc(sym || '')}"></label><datalist id="v_list">${rows.filter(r => r.nifty500).map(r => `<option value="${esc(r.symbol)}">${esc(r.name)}</option>`).join('')}</datalist>
-   <button onclick="location.hash='#/valuation/'+encodeURIComponent($('#v_co').value.trim().toUpperCase())">Open</button>
+  <div class="card noprint flt"><label>Company <input id="v_co" list="v_list" placeholder="Symbol or name, e.g. ITC or Bharti Airtel" value="${esc(co ? co.symbol : (sym || ''))}" onkeydown="if(event.key==='Enter')valOpen()" onchange="valOpen()"></label><datalist id="v_list">${rows.filter(r => r.nifty500 || (Vd.reported || {})[r.id]).map(r => `<option value="${esc(r.symbol)}">${esc(r.name)}</option>`).join('')}</datalist>
+   <button onclick="valOpen()">Open</button>
    <span class="muted small">Asks: what must happen for this company's equity to compound at 15%, 20% or 25% a year?</span></div>
   <div class="g2">
    <div class="card reported"><h3>Reported data ${lab('VERIFIED FACT')}</h3>${co ? `<table>
@@ -230,7 +232,7 @@ ROUTES.valuation = async (sym) => {
     <tr><td>Promoter holding</td><td>${isNum(co.promoter_pct) ? co.promoter_pct + '%' : NA}</td></tr>
     ${repRows(Vd, co.id)}
     ${(Vd.not_ingested || []).map(x => `<tr><td>${esc(x)}</td><td>${NA} <span class="small muted">(not ingested; enter it on the right with its source)</span></td></tr>`).join('')}</table>
-    <div class="src">${esc(Vd.note)}</div>${repFormulas(Vd)}` : '<p class="muted">Pick a company to see its reported data.</p>'}</div>
+    <div class="src">${esc(Vd.note)}</div>${repFormulas(Vd)}` : sym ? `<p id="v_nomatch"><span class="na">insufficient data</span>: no listed company matches “${esc(sym)}”. Type an NSE symbol (e.g. NTPC) or the start of the company name, or pick from the list.</p>` : '<p class="muted">Pick a company to see its reported data.</p>'}</div>
    <div class="card assumptions"><h3>Analyst assumptions <span class="lab UN">ANALYST ASSUMPTION</span></h3>
     <p class="small muted">Blank until you enter them. Nothing is prefilled or estimated for you. Figures taken from reports need a source note.</p>
     <label>Reinvestment method <select id="v_mode" onchange="valMode()"><option value="roic" ${(draft && draft.a && draft.a.mode) === 'explicit' ? '' : 'selected'}>From return on new capital</option><option value="explicit" ${(draft && draft.a && draft.a.mode) === 'explicit' ? 'selected' : ''}>Explicit net capex + working capital</option></select></label>
@@ -243,6 +245,22 @@ ROUTES.valuation = async (sym) => {
   valMode(); if (draft && draft.a) valRun(sym || '');
 };
 const fx = (x, d = 1, suf = '') => isNum(x) ? (+x).toFixed(d) + suf : NA;
+// Company lookup for the Valuation Lab: exact symbol, then exact name, then a single name/symbol prefix or substring match (case-insensitive)
+let VAL_ROWS = [];
+function valFind(rows, q) {
+  const n = x => String(x || '').toUpperCase().replace(/\s+/g, ' ').replace(/\b(LTD|LIMITED)\.?$/, '').trim();
+  const s = String(q || '').trim(); if (!s) return null; const u = s.toUpperCase(), nu = n(s);
+  const one = a => a.length === 1 ? a[0] : (a.filter(r => r.nifty500).length === 1 ? a.filter(r => r.nifty500)[0] : null);
+  return rows.find(r => String(r.symbol).toUpperCase() === u) || rows.find(r => n(r.name) === nu)
+    || one(rows.filter(r => n(r.name).startsWith(nu))) || one(rows.filter(r => String(r.symbol).toUpperCase().startsWith(u)))
+    || one(rows.filter(r => n(r.name).includes(nu))) || null;
+}
+window.valFind = valFind;
+window.valOpen = () => {
+  const el = $('#v_co'); if (!el) return; const q = el.value.trim(); if (!q) return;
+  const co = valFind(VAL_ROWS, q); const target = '#/valuation/' + encodeURIComponent(co ? co.symbol : q);
+  if (location.hash !== target) location.hash = target;
+};
 function repRows(Vd, cid) {
   const r = (Vd.reported || {})[cid];
   if (!r) return `<tr><td>Company financials</td><td>${NA} <span class="small muted">(no NSE XBRL filing loaded for this company yet)</span></td></tr>`;
