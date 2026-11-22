@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 BASE = sys.argv[1].rstrip("/") + "/"; OUT = sys.argv[2] if len(sys.argv) > 2 else "shots"
 VIEWS = ["executive", "horizons/1-3y", "horizons/3-10y", "horizons/10-20y", "sectors", "sectors/capital_goods", "investors", "investors/sbi", "funds", "companies", "companies/transactions",
          "global", "credit", "radar", "quality", "sources", "watch", "admin",
-         "opportunities", "opportunities/opp_telecom_capital_broadening", "signals", "valuation", "valuation/ITC", "investable", "thesis", "analyst"]
+         "opportunities", "opportunities/opp_telecom_capital_broadening", "signals", "industry", "industry/capital_goods", "valuation", "valuation/ITC", "investable", "thesis", "analyst"]
 V2_MOBILE = ["opportunities", "opportunities/opp_power_credit_quality", "valuation/ITC", "thesis"]
 EDU = "For educational and research purposes only; not investment advice; users must make their own decisions under their own registrations."
 PROMINENT = ("valuation", "investable", "opportunities/")
@@ -43,6 +43,10 @@ async def run(b, label, vp, mobile, errs, views):
     await pg.goto(BASE + "#/valuation/ITC", wait_until="networkidle"); await pg.wait_for_timeout(800)
     if await pg.evaluate("document.getElementById('v_revenue0').value") != "":
         errs.append(f"{label}: valuation inputs are prefilled")
+    rep = await pg.evaluate("(document.querySelector('.card.reported')||{}).innerText||''")
+    if "trailing 4 quarters" not in rep.lower() or "₹" not in rep.split("railing 4 quarters")[-1][:80]:
+        errs.append(f"{label}: reported panel has no TTM revenue for ITC: {rep[:300]!r}")
+    print(f"{label} reported panel: {rep[:300]!r}")
     for k, val in (("revenue0", "1000"), ("growth", "12"), ("margin", "18"), ("tax", "25"), ("roic", "20"), ("wacc", "12"), ("g_term", "5"), ("years", "10"), ("net_debt", "200"), ("market_value", "3000")):
         await pg.fill(f"#v_{k}", val)
     await pg.click("text=Calculate"); await pg.wait_for_timeout(500)
