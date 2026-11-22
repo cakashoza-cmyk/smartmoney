@@ -1,0 +1,112 @@
+{
+ "companies.json": [
+  "cols",
+  "rows"
+ ],
+ "conclusions.json": [],
+ "credit.json": [
+  "agencies",
+  "debt_raised",
+  "not_available",
+  "ratings",
+  "recent_actions",
+  "sibc",
+  "sibc_history",
+  "sibc_last"
+ ],
+ "executive.json": [
+  "active_investors",
+  "aif",
+  "big_deals",
+  "commitments",
+  "dii",
+  "events",
+  "fii",
+  "fpi_sector",
+  "fpi_total",
+  "infra_credit",
+  "inst_deals",
+  "mf_all",
+  "mf_equity",
+  "mf_passive",
+  "sibc_total",
+  "themes",
+  "top_companies",
+  "unusual",
+  "wb_fdi"
+ ],
+ "global.json": [
+  "demography",
+  "developments",
+  "fred",
+  "sensitivity"
+ ],
+ "horizons.json": [
+  "1-3y",
+  "10-20y",
+  "3-10y",
+  "methods"
+ ],
+ "investors.json": [
+  "aggregates",
+  "convergence",
+  "groups",
+  "q_cur",
+  "q_prev",
+  "rules"
+ ],
+ "meta.json": [
+  "disclaimer",
+  "fpi_last",
+  "freshness",
+  "generated",
+  "groups",
+  "industries",
+  "methods",
+  "not_assessed",
+  "q_cur",
+  "q_prev",
+  "quality",
+  "quarters",
+  "sibc_last",
+  "sources",
+  "weights"
+ ],
+ "mf.json": [
+  "amc_sources",
+  "band_pct",
+  "groups_compared",
+  "method",
+  "month",
+  "most_added",
+  "most_exited",
+  "most_new",
+  "most_reduced",
+  "sectors",
+  "status"
+ ],
+ "radar.json": [
+  "companies_attention",
+  "contrarian",
+  "contrarian_rule",
+  "language_note",
+  "multi_investor",
+  "private_companies",
+  "sectors",
+  "sub_sectors",
+  "themes_10_20",
+  "valuation",
+  "withdrawal"
+ ],
+ "search.json": [],
+ "sectors.json": [
+  "legacy_note",
+  "sectors"
+ ],
+ "transactions.json": [
+  "cols",
+  "deals_url",
+  "rows",
+  "skipped"
+ ]
+}

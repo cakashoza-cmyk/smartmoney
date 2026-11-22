@@ -1,0 +1,116 @@
+{
+  "_readme": "Analyst-entered research hypotheses. Change only through a reviewed commit (pull request). thesis_updates are append-only: never edit or delete an entry; add a new one. No scores are accepted in Sprint 1. Starter hypotheses were seeded from detected signals and still need analyst review.",
+  "opportunities": [
+    {
+      "opportunity_id": "opp_telecom_capital_broadening",
+      "title": "Telecom: institutional capital broadening across the sector",
+      "thesis": "Starter hypothesis to test: domestic fund houses, foreign portfolio investors and institutional holders moved into Indian telecom at the same time in the latest periods. The hypothesis is that this reflects a durable change in how institutions view the sector's economics, not a one-period rotation. Industry economics (tariffs, capex intensity, return on capital) are not yet assessed.",
+      "industry_id": "telecommunication",
+      "geography": "India",
+      "horizon": "1-3y",
+      "owner": "Unassigned (starter hypothesis for analyst review)",
+      "starter_hypothesis": true,
+      "created_at": "2026-11-22",
+      "next_review": "2026-12-15",
+      "companies": [
+        {"company_id": "NSE:JPL", "role": "context", "note": "Company-level signal: three fund houses newly held it in Oct-2026."},
+        {"company_id": "NSE:BHARTIHEXA", "role": "context", "note": "Company-level signal: three fund houses added or newly held it in Oct-2026."}
+      ],
+      "evidence": [
+        {"signal_id": "sig_43079f2defd720d6", "role": "supporting", "materiality": 3, "explanation": "Fund-house net breadth in the sector was +67% in the latest monthly files."},
+        {"signal_id": "sig_2791eff619bea14d", "role": "supporting", "materiality": 3, "explanation": "FPIs were net buyers over the last 3 months, independently of domestic funds."},
+        {"signal_id": "sig_ed32560ae8bfa076", "role": "supporting", "materiality": 2, "explanation": "Institutional holding rose at most of the sector's listed companies in the latest quarter."},
+        {"signal_id": "sig_b4837846eebb43bf", "role": "supporting", "materiality": 2, "explanation": "Company-level: several fund houses moved the same way."},
+        {"signal_id": "sig_ee4b419858b7f724", "role": "supporting", "materiality": 2, "explanation": "Company-level: several fund houses moved the same way."},
+        {"signal_id": "sig_ba4b2e0362a4bb64", "role": "contradicting", "materiality": 2, "explanation": "Bank credit to the sector fell year on year. Open question: deleveraging, lower capex, or reduced lender appetite."}
+      ],
+      "confirmation_conditions": [
+        "Fund-house net breadth in telecom stays positive in the next monthly portfolio files.",
+        "FPI 3-month net flow into telecom stays positive in the next NSDL fortnights."
+      ],
+      "invalidation_conditions": [
+        "Fund-house net breadth in telecom turns negative (40% or more net trims/exits) in the next monthly files.",
+        "FPI 3-month net flow turns to an outflow of 1.5% or more of FPI holdings."
+      ],
+      "open_questions": ["Tariff and ARPU trend", "Capex intensity after the 5G build-out", "Why bank credit to the sector is contracting"],
+      "scenarios": []
+    },
+    {
+      "opportunity_id": "opp_power_credit_quality",
+      "title": "Power: improving credit quality of rated borrowers",
+      "thesis": "Starter hypothesis to test: two rating agencies, independently, upgraded far more Indian power borrowers than they downgraded over the last 90 days. The hypothesis is that the sector's cash-flow quality is improving (payment discipline, contracted renewables, lower leverage). Foreign portfolio investors were net sellers over the same period, so equity investors and credit analysts currently disagree.",
+      "industry_id": "power",
+      "geography": "India",
+      "horizon": "1-3y",
+      "owner": "Unassigned (starter hypothesis for analyst review)",
+      "starter_hypothesis": true,
+      "created_at": "2026-11-22",
+      "next_review": "2026-12-15",
+      "companies": [
+        {"company_id": "NSE:CLEANMAX", "role": "context", "note": "Company-level signal: institutional holding up 7.42 pp in the quarter to Sep-2026."},
+        {"company_id": "NSE:VEDPOWER", "role": "context", "note": "Company-level signal: institutional holding down 4.01 pp in the quarter to Sep-2026."}
+      ],
+      "evidence": [
+        {"signal_id": "sig_b8b47a3746f44427", "role": "supporting", "materiality": 3, "explanation": "India Ratings: 27 upgrades and no downgrades among power borrowers in 90 days."},
+        {"signal_id": "sig_418653c165d99657", "role": "supporting", "materiality": 3, "explanation": "ICRA, separately: 6 upgrades and no downgrades among power borrowers in 90 days."},
+        {"signal_id": "sig_0adbfaaf035c9632", "role": "supporting", "materiality": 1, "explanation": "Company-level: institutional holding rose sharply at one listed power company."},
+        {"signal_id": "sig_e7485b6ed91b1b6d", "role": "contradicting", "materiality": 2, "explanation": "FPIs were net sellers of power stocks over the last 3 months."},
+        {"signal_id": "sig_9a56aa84f8b5b094", "role": "contextual", "materiality": 1, "explanation": "Company-level: institutional holding fell at another listed power company."}
+      ],
+      "confirmation_conditions": [
+        "Upgrades keep exceeding downgrades for power borrowers at India Ratings and ICRA in the next 90-day window.",
+        "CARE and CRISIL power-sector actions point the same way once enough are classified."
+      ],
+      "invalidation_conditions": [
+        "Downgrades exceed upgrades for power borrowers at either agency over a 90-day window.",
+        "Defaults appear among rated power borrowers."
+      ],
+      "open_questions": ["Is the upgrade wave concentrated in renewables or distribution?", "Why are FPIs net sellers while ratings improve?"],
+      "scenarios": []
+    },
+    {
+      "opportunity_id": "opp_it_institutional_return",
+      "title": "Information technology: institutional money returning",
+      "thesis": "Starter hypothesis to test: foreign portfolio investors and domestic institutions both raised exposure to Indian IT companies in the latest periods, after earlier outflows. The hypothesis is that institutions expect demand for Indian IT services to recover. Revenue, deal wins and margins are not yet ingested, so the demand side is untested.",
+      "industry_id": "information_technology",
+      "geography": "India",
+      "horizon": "1-3y",
+      "owner": "Unassigned (starter hypothesis for analyst review)",
+      "starter_hypothesis": true,
+      "created_at": "2026-11-22",
+      "next_review": "2026-12-15",
+      "companies": [
+        {"company_id": "NSE:PERSISTENT", "role": "context", "note": "Company-level signal: three fund houses added or newly held it in Oct-2026."},
+        {"company_id": "NSE:KPITTECH", "role": "context", "note": "Company-level signal: institutional holding down 4.25 pp in the quarter to Sep-2026."}
+      ],
+      "evidence": [
+        {"signal_id": "sig_b2adbecd5cb285bf", "role": "supporting", "materiality": 3, "explanation": "FPIs were net buyers of IT stocks over the last 3 months."},
+        {"signal_id": "sig_05c36d0f016ef4d2", "role": "supporting", "materiality": 2, "explanation": "Institutional holding rose at most listed IT companies in the latest quarter."},
+        {"signal_id": "sig_c5d6745f235026f9", "role": "supporting", "materiality": 1, "explanation": "Company-level: several fund houses moved the same way."},
+        {"signal_id": "sig_acd6030a7ae3fad2", "role": "contradicting", "materiality": 1, "explanation": "Company-level: institutional holding fell at one listed IT company."},
+        {"signal_id": "sig_23a22fa44bfb5e14", "role": "contextual", "materiality": 1, "explanation": "Bank credit to computer software grew quickly; small base, and not a demand measure."}
+      ],
+      "confirmation_conditions": [
+        "FPI 3-month net flow into IT stays positive in the next NSDL fortnights.",
+        "Institutional breadth in IT stays at 65% or more in the next shareholding quarter."
+      ],
+      "invalidation_conditions": [
+        "FPI 3-month net flow into IT turns to an outflow of 1.5% or more of FPI holdings.",
+        "Institutional breadth in IT falls to 35% or less."
+      ],
+      "open_questions": ["Revenue growth and deal wins (not ingested)", "Margin trend (not ingested)"],
+      "scenarios": []
+    }
+  ],
+  "thesis_updates": [
+    {"update_id": "tu_opp_telecom_capital_broadening_001", "opportunity_id": "opp_telecom_capital_broadening", "update_date": "2026-11-22", "previous_stage": null, "new_stage": "discovery",
+     "summary": "Starter hypothesis recorded from detected signals (fund-house breadth, FPI flow, institutional breadth). Not yet reviewed by an analyst.",
+     "supporting_evidence": ["sig_43079f2defd720d6", "sig_2791eff619bea14d", "sig_ed32560ae8bfa076"], "opposing_evidence": ["sig_ba4b2e0362a4bb64"], "assumptions_changed": null, "author": "Sprint 1 seed (pending analyst review)"},
+    {"update_id": "tu_opp_power_credit_quality_001", "opportunity_id": "opp_power_credit_quality", "update_date": "2026-11-22", "previous_stage": null, "new_stage": "discovery",
+     "summary": "Starter hypothesis recorded from detected signals (India Ratings and ICRA rating balance). Not yet reviewed by an analyst.",
+     "supporting_evidence": ["sig_b8b47a3746f44427", "sig_418653c165d99657"], "opposing_evidence": ["sig_e7485b6ed91b1b6d"], "assumptions_changed": null, "author": "Sprint 1 seed (pending analyst review)"},
+    {"update_id": "tu_opp_it_institutional_return_001", "opportunity_id": "opp_it_institutional_return", "update_date": "2026-11-22", "previous_stage": null, "new_stage": "discovery",
+     "summary": "Starter hypothesis recorded from detected signals (FPI flow, institutional breadth). Not yet reviewed by an analyst.",
+     "supporting_evidence": ["sig_b2adbecd5cb285bf", "sig_05c36d0f016ef4d2"], "opposing_evidence": ["sig_acd6030a7ae3fad2"], "assumptions_changed": null, "author": "Sprint 1 seed (pending analyst review)"}
+  ]
+}

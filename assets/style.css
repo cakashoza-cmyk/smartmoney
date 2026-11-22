@@ -56,3 +56,16 @@ ol{margin:4px 0;padding-left:20px}ol li{margin:3px 0}
 pre{white-space:pre-wrap;max-height:260px;overflow:auto;background:var(--bg3);padding:8px;border-radius:6px}
 td .bar{display:inline-block;width:70px;vertical-align:middle;margin-left:6px}
 @media (max-width:700px){.g2,.g3{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.kpi .kv{font-size:16px}.tw{max-height:420px}table{font-size:12px}}
+
+/* ---------------- 2.0 ---------------- */
+.edu{padding:6px 16px;font-size:12px;background:rgba(245,165,36,.08);border-bottom:1px solid var(--line);color:var(--fg)}
+.edu.big{margin:10px 0;padding:12px 14px;font-size:14px;border:2px solid var(--amb);border-radius:8px;background:rgba(245,165,36,.12)}
+nav a.v2{color:var(--fg)}
+.chip.stg{border-color:var(--acc);color:var(--acc)}.chip.stg.validation{border-color:var(--pos);color:var(--pos)}.chip.stg.emergence{border-color:#b48cf2;color:#b48cf2}
+.chip.stg.investable_review{border-color:var(--amb);color:var(--amb)}.chip.stg.invalidated,.chip.stg.archived{border-color:var(--grey);color:var(--grey)}
+.chip.starter{border-color:var(--amb);color:var(--amb)}.chip.cov{border-color:var(--pos);color:var(--pos)}
+.card.opp{margin-bottom:12px}.card.opp p{margin:6px 0}
+.card.reported{border-left:4px solid var(--pos)}.card.assumptions{border-left:4px solid var(--amb);background:rgba(245,165,36,.05)}
+.card.results{border-left:4px solid #b48cf2}
+.card label{display:inline-block;margin:4px 8px 4px 0}
+details summary{cursor:pointer;color:var(--acc);margin:6px 0}

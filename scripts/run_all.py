@@ -1,6 +1,6 @@
 """Scheduler entry point. Usage: python3 scripts/run_all.py <group> [<group> ...]
 Groups: daily | fortnightly | monthly | quarterly | annual | amc | ratings | all. Each job runs independently; a failure is logged
-(extraction_logs + data-quality page) and never stops the others or wipes earlier data. build.py always runs last."""
+(extraction_logs + data-quality page) and never stops the others or wipes earlier data. build.py then build_v2.py always run last."""
 import sys
 from common import run
 import registry, ingest_universe, ingest_shp, ingest_nsdl, ingest_nse, ingest_official as o, connectors_paid, ingest_amc, ingest_ratings as rt
@@ -28,3 +28,5 @@ if __name__ == "__main__":
             run(sid, fn)
     import build
     build.main()
+    import build_v2  # 2.0 layer: migrations, signals, analyst hypotheses, v2 exports (v1 exports untouched)
+    build_v2.main()
