@@ -8,8 +8,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const NA = '<span class="na">insufficient data</span>';
 const isNum = x => typeof x === 'number' && isFinite(x);
 const inr = (x, d = 0) => isNum(x) ? x.toLocaleString('en-IN', { maximumFractionDigits: d, minimumFractionDigits: d }) : null;
-const cr = (x, d = 0) => isNum(x) ? `<span class="${x > 0 ? 'pos' : x < 0 ? 'neg' : ''}">₹${inr(x, d)} cr</span>` : NA;
-const crp = x => isNum(x) ? `₹${inr(x)} cr` : NA;
+const cr = (x, d = 0) => isNum(x) ? `<span class="${x > 0 ? 'pos' : x < 0 ? 'neg' : ''}">${x < 0 ? '−' : ''}₹${inr(Math.abs(x), d)} cr</span>` : NA;
+const crp = x => isNum(x) ? `${x < 0 ? '−' : ''}₹${inr(Math.abs(x))} cr` : NA;
 const pp = (x, d = 2) => isNum(x) ? `<span class="${x > 0 ? 'pos' : x < 0 ? 'neg' : ''}">${x > 0 ? '+' : ''}${x.toFixed(d)} pp</span>` : NA;
 const pc = (x, d = 1) => isNum(x) ? `<span class="${x > 0 ? 'pos' : x < 0 ? 'neg' : ''}">${x > 0 ? '+' : ''}${x.toFixed(d)}%</span>` : NA;
 const num = (x, d = 1) => isNum(x) ? x.toFixed(d) : NA;
