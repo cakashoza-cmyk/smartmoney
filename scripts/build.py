@@ -861,7 +861,7 @@ def export(b: B):
             t["flag"] = "trading desk / broker" if g.get("trading_flag") else "index fund" if g.get("passive_flag") else "individual" if g.get("category") == "individual_or_unknown" else None
             if t["flag"] == "individual":
                 t["inv"] = "Individual investor (name withheld here; see the NSE source)"
-            t["gname"] = g.get("name") if not t["flag"] else None
+            t["gname"] = g.get("name") if not t["flag"] and not str(t["g"] or "").startswith("self_") else None
         x = b.comp.get(cid, {})
         jdump(f"co/{c['symbol']}.json", {"id": cid, "name": c["name"], "symbol": c["symbol"], "industry": c["industry_id"], "sub": c["sub_industry_id"], "index": c["index_membership"],
                                           "ownership": hist, "named": named, "shp_docs": docs, "timeline": tl, "summary": {k: v for k, v in x.items() if k not in ("scores",)},
