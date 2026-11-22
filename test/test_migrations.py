@@ -7,7 +7,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import migrate  # noqa: E402
 
 LIVE = Path(os.environ.get("SM_DB", ROOT / "data" / "smartmoney.db"))
-NEW = {"signals", "entity_relationships", "opportunities", "opportunity_evidence", "opportunity_scenarios", "thesis_updates", "schema_migrations"}
+NEW = {"signals", "entity_relationships", "opportunities", "opportunity_evidence", "opportunity_scenarios", "thesis_updates", "schema_migrations",
+       "company_financials", "company_segments"}
 
 
 def legacy_state(con):
@@ -30,7 +31,8 @@ class Migrations(unittest.TestCase):
 
     def fresh(self):
         """A copy without any 2.0 tables, to exercise the first run."""
-        for t in ("thesis_updates", "opportunity_scenarios", "opportunity_evidence", "opportunities", "entity_relationships", "signals", "schema_migrations"):
+        for t in ("thesis_updates", "opportunity_scenarios", "opportunity_evidence", "opportunities", "entity_relationships", "signals", "schema_migrations",
+                  "company_financials", "company_segments"):
             self.con.execute(f"DROP TRIGGER IF EXISTS thesis_updates_no_update"); self.con.execute(f"DROP TRIGGER IF EXISTS thesis_updates_no_delete")
             self.con.execute(f"DROP TABLE IF EXISTS {t}")
         self.con.commit()
@@ -39,12 +41,13 @@ class Migrations(unittest.TestCase):
         self.fresh()
         before = legacy_state(self.con)
         ran = migrate.apply_all(self.con)
-        self.assertEqual(ran, ["001_opportunity_foundation.sql", "002_audit_columns_and_append_only.sql"])
+        self.assertEqual(ran, [p.name for _, _, p in migrate.files()])
+        self.assertEqual(ran[:3], ["001_opportunity_foundation.sql", "002_audit_columns_and_append_only.sql", "003_company_financials.sql"])
         after = legacy_state(self.con)
         self.assertEqual(before, after, "a legacy table's rows or definition changed")
         have = {r[0] for r in self.con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         self.assertTrue(NEW <= have)
-        self.assertEqual(sorted(migrate.applied(self.con)), ["001", "002"])
+        self.assertEqual(sorted(migrate.applied(self.con)), [v for v, _, _ in migrate.files()])
 
     def test_idempotent(self):
         self.fresh(); migrate.apply_all(self.con)
@@ -63,11 +66,11 @@ class Migrations(unittest.TestCase):
         d = self.tmp / "mig2"; d.mkdir()
         for v, n, p in migrate.files():
             (d / p.name).write_text(p.read_text())
-        (d / "003_bad.sql").write_text("CREATE TABLE zz_tmp (a INTEGER);\nTHIS IS NOT SQL;\n")
+        (d / "999_bad.sql").write_text("CREATE TABLE zz_tmp (a INTEGER);\nTHIS IS NOT SQL;\n")
         with self.assertRaises(migrate.MigrationError):
             migrate.apply_all(self.con, d)
         self.assertIsNone(self.con.execute("SELECT name FROM sqlite_master WHERE name='zz_tmp'").fetchone())
-        self.assertNotIn("003", migrate.applied(self.con))
+        self.assertNotIn("999", migrate.applied(self.con))
 
     def test_thesis_updates_append_only(self):
         self.fresh(); migrate.apply_all(self.con)
