@@ -408,6 +408,14 @@ def job_worldbank(con):
 # ---------------------------------------------------------------- FRED
 FRED = {"DFF": ("US Fed funds effective rate", "%"), "DGS10": ("US 10-year Treasury yield", "%"), "DTWEXBGS": ("US dollar broad index", "index"),
         "DCOILBRENTEU": ("Brent crude", "US$/bbl"), "DEXINUS": ("INR per US$", "INR"), "DFII10": ("US 10-year real yield (TIPS)", "%")}
+# Sprint 2 Global Radar: IMF primary commodity prices (monthly, via FRED) and global activity. Sector links are a fixed table in signal_detector.
+FRED.update({"PCOPPUSDM": ("Copper (IMF, monthly avg)", "US$/t"), "PALUMUSDM": ("Aluminium (IMF, monthly avg)", "US$/t"),
+             "PIORECRUSDM": ("Iron ore (IMF, monthly avg)", "US$/t"), "PCOALAUUSDM": ("Coal, Australia (IMF, monthly avg)", "US$/t"),
+             "PNGASJPUSDM": ("LNG, Asia/Japan (IMF, monthly avg)", "US$/mmbtu"), "PZINCUSDM": ("Zinc (IMF, monthly avg)", "US$/t"),
+             "PNICKUSDM": ("Nickel (IMF, monthly avg)", "US$/t"), "PCOTTINDUSDM": ("Cotton (IMF, monthly avg)", "US cents/lb"),
+             "PPOILUSDM": ("Palm oil (IMF, monthly avg)", "US$/t"), "PRUBBUSDM": ("Rubber (IMF, monthly avg)", "US cents/lb"),
+             "PSUGAISAUSDM": ("Sugar (IMF, monthly avg)", "US cents/lb"), "PWHEAMTUSDM": ("Wheat (IMF, monthly avg)", "US$/t"),
+             "INDPRO": ("US industrial production index", "index"), "IPMAN": ("US manufacturing production index", "index")})
 
 
 def job_fred(con):
