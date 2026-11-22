@@ -176,4 +176,12 @@ How it works:
 - Hypotheses live in `data/analyst/opportunities.json` and change only through a reviewed pull request. The pipeline never creates, scores or promotes one.
 - There is no composite score.
 
+Sprint 2 adds:
+- **Company results:** from NSE integrated-filing XBRL for the Nifty 500. Covers TTM revenue, EBITDA, net debt, capex, ROCE, ROIC and incremental ROIC, with formulas shown.
+- **Trade:** TradeStat and UN Comtrade data by HS chapter.
+- **Production and capacity:** MoSPI IIP and RBI OBICUS capacity utilisation.
+- **Global Radar:** IMF commodity prices via FRED.
+- **New signal rules** that feed structural demand and company execution.
+- **Industry data page,** plus a prefilled reported panel in the Valuation Lab. Analyst assumptions stay blank.
+
 Design, rules, stage criteria and limitations: [docs/SMART_MONEY_INTELLIGENCE_2.0.md](docs/SMART_MONEY_INTELLIGENCE_2.0.md).

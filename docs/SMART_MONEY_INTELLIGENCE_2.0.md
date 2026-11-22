@@ -80,7 +80,7 @@ Otherwise it is `candidate` (document or source problem) or `rejected` (stale). 
 |---|---|
 | Discovery | at least one validated supporting signal |
 | Validation | at least two validated supporting signals from two or more independent sources |
-| Emergence | Validation, plus a company-level supporting signal, a confirmation condition, and demand or execution evidence (not available from Sprint 1 sources) |
+| Emergence | Validation, plus a company-level supporting signal, a confirmation condition, and a validated *supporting* signal on structural demand or company execution (Sprint 2 data) |
 | Investable review | Emergence, plus a complete scenario set (probabilities total 100%) and an analyst valuation for a linked company |
 | Invalidated / Archived | analyst decision |
 
@@ -93,6 +93,11 @@ The six dimensions are structural demand, industry economics, competitive positi
 - No dimension score is computed in Sprint 1.
 - There is no composite score.
 - Coverage mapping: capital-flow and credit signals count toward capital allocation; rating-balance signals count toward industry economics; an analyst valuation counts toward valuation.
+- Coverage mapping added in Sprint 2:
+  - production, export and capacity signals count toward structural demand;
+  - company results count toward company execution;
+  - sector results and commodity moves count toward industry economics;
+  - the import share of trade counts toward competitive position.
 
 ## Valuation Lab
 
@@ -100,7 +105,8 @@ The six dimensions are structural demand, industry economics, competitive positi
   - month-end price derived from fund-house files (market value ÷ shares held);
   - sector index P/E with its 10-year percentile;
   - institutional and promoter holding.
-- **Not ingested in Sprint 1**, and shown as "insufficient data": company financial statements (revenue, margins, capex, working capital, tax, ROIC), shares outstanding and net debt.
+- **From Sprint 2** (VERIFIED FACT, each with a link to the XBRL filing or the NSE bhavcopy): revenue for the last four quarters, EBITDA and EBIT margins, net debt, shares outstanding, an estimated market capitalisation (labelled ESTIMATED VALUE), capex and operating cash flow for the last financial year, ROCE, ROIC and incremental ROIC. Formulas are listed under the panel.
+- **Still not ingested**, shown as "insufficient data": working-capital detail, cash tax paid, segment capital employed, lease liabilities.
 - **Analyst assumptions** (right panel, ANALYST ASSUMPTION): blank until entered, never prefilled. Base revenue, net debt and market value need a source note before an entry can be downloaded for review.
 - **Arithmetic:**
   - free cash flow = revenue × EBIT margin × (1 − tax) − reinvestment;
@@ -112,14 +118,81 @@ The six dimensions are structural demand, industry economics, competitive positi
 
 ## Sprint 1 limitations
 
-- Industry economics, capacity, trade, technology, company financials and global developments are not ingested yet. The dossier shows those sections as insufficient data.
-- Signals cover capital flows and credit only, so no hypothesis can meet the Emergence criteria yet.
+- (Sprint 1) Industry economics, capacity, trade, company financials and global developments were not ingested. Sprint 2 adds them (see below); technology and market share are still not ingested.
+- (Sprint 1) Signals covered capital flows and credit only. Sprint 2 adds demand, execution and global rules.
 - Hypotheses are stored in a JSON file and published by pull request. There is no multi-user authentication; admin mode is a browser-local convenience.
 - Fund-house signals cover 5 of the 10 largest fund houses (the others are blocked or not built; see Fund houses).
 
+## Sprint 2: data that lets hypotheses progress
+
+### Sources added (status is kept in the `sources` registry and shown on Sources & method / Industry data)
+
+| Source | What | Status |
+|---|---|---|
+| `nse_financials` | NSE integrated filing (financial results) XBRL, Nifty 500, consolidated when filed | working (quarters from Mar-2025, when SEBI integrated filing began) |
+| `nse_bhavcopy` | NSE daily closing prices, for the estimated market capitalisation | working |
+| `tradestat_eidb` | Ministry of Commerce TradeStat, exports/imports by HS chapter, US$ mn, FY2018-19 onwards | working (public form, no captcha) |
+| `un_comtrade` | UN Comtrade public preview, India by HS chapter vs world | working (free tier, annual) |
+| `mospi_iip` | MoSPI IIP monthly: general, sectoral, NIC 2-digit manufacturing, use-based | working (api.mospi.gov.in, no key) |
+| `rbi_obicus` | RBI OBICUS capacity utilisation (and SA), new-order growth | working (release tables) |
+| `fred` | + IMF primary commodity prices (copper, aluminium, iron ore, coal, LNG, zinc, nickel, cotton, palm oil, rubber, sugar, wheat) and US industrial production | working |
+| `oea_core8` | Eight core industries (eaindustry.nic.in) | blocked: site does not answer from the pipeline network; not bypassed |
+| `jpc_steel`, `fert_production` | Steel (JPC), fertiliser production | blocked: sites do not answer; IIP basic metals / chemicals used instead |
+| `cea_power`, `coal_ministry` | CEA power, coal production | not built: PDF reports; IIP electricity / fuel minerals used instead |
+| `imf_datamapper` | IMF DataMapper API | blocked (HTTP 403); IMF commodity prices come through FRED |
+| `wto_timeseries`, `eia_api` | WTO tariffs/trade, US EIA | needs credentials (free API keys); not used |
+| `iea_data` | IEA statistics | not built: licence required |
+
+### Tables
+
+- `company_financials` (migration 003): one row per company, period type (Q = the quarter; YTD = financial year to date) and basis. Reported fields are stored as tagged (₹ crore = rupees ÷ 10^7). Derived fields stored next to them: EBITDA, EBIT, shares outstanding and net debt. A missing tag stays NULL.
+- `company_segments` (migration 003): segment revenue and result for the latest quarter of each filing.
+- Trade, IIP, OBICUS, prices and commodities are stored in `observations` (no new table needed), with `hs_chapter`, `iip_industry`, `market` and `company` entity types.
+
+### Formulas (also exported in `v2/fundamentals.json` and shown in the Valuation Lab)
+
+- EBITDA = PBT before exceptional items + finance costs + depreciation & amortisation − other income
+- EBIT = PBT before exceptional items + finance costs − other income
+- Net debt = current + non-current borrowings − (cash & equivalents + other bank balances + current investments); leases excluded
+- ROCE = EBIT (financial year) ÷ average capital employed, where capital employed = equity attributable to owners + borrowings, averaged over the opening and closing balance sheets
+- ROIC = NOPAT ÷ average invested capital, where NOPAT = EBIT × (1 − effective tax rate) and invested capital = equity + net debt. The tax rate is tax expense ÷ PBT for the same year. ROIC is not computed when PBT ≤ 0 or the rate is outside 0–50%.
+- Incremental ROIC = ΔNOPAT ÷ Δinvested capital, year on year. It is not meaningful when invested capital did not rise.
+- Market capitalisation (estimate) = paid-up equity capital ÷ face value × latest NSE close.
+- None of these is computed for banks, NBFCs or insurers, where borrowings are operating funding.
+
+### Mappings to NSE sectors (fixed tables, exported in `v2/industry.json`)
+
+- **HS chapters:** for example, 72–76 → metals & mining; 30 → healthcare; 84, 86, 88, 89, 93 → capital goods; 87 → autos; 50–63 → textiles; 27 → oil & gas. A chapter can feed several sectors. Services have no merchandise trade.
+- **IIP NIC 2-digit industries and use-based groups:** for example, basic metals → metals & mining; electrical equipment and machinery → capital goods; total electricity → power. Category totals are not mapped.
+- **Commodities:** each series lists the sectors it first affects and how (realisation or input cost).
+
+### New signal rules
+
+| Rule | Type → dimension | Threshold |
+|---|---|---|
+| `fin_company_quarter` | company_execution → Company execution | Revenue +20% with the margin not lower, or revenue −10%, or margin −5 pp. Mixed cases (revenue +25% and margin −5 pp together) are not emitted. |
+| `fin_sector_revenue` | industry_economics → Industry economics | Sector revenue ≥ +15% or ≤ 0% YoY (5+ companies) |
+| `fin_sector_margin` | industry_economics | Aggregate EBITDA margin ± 1.5 pp YoY (5+ companies) |
+| `iip_sector_3m` | structural_demand → Structural demand | 3-month average IIP YoY ≥ 8% or ≤ −2% |
+| `trade_export_fy` | structural_demand | Exports +15% or −10% in the latest FY |
+| `trade_import_share` | competitive_position → Competitive position | Import share of trade ± 3 pp (US$ 1 bn+ of trade) |
+| `capacity_utilisation` | structural_demand (market level) | OBICUS seasonally adjusted CU ≥ 75% or ≤ 70% |
+| `commodity_3m` | global → Industry economics | Commodity price ± 15% over 3 months; linked to exposed sectors as relationships |
+
+**Emergence** now requires a *supporting*, validated signal on structural demand or company execution (Sprint 1 counted any linked evidence). Promotion is still recorded only by an analyst.
+
+### Sprint 2 limitations
+
+- Company results history starts with the quarter ended Mar-2025 (SEBI integrated filing). The older NSE results API stops at Dec-2024 and uses a different taxonomy, so it is not merged.
+- Revenue is as reported. Duties included in revenue (for example excise on tobacco from 2026) move growth and margins. The company rule skips the mixed case, but the numbers are shown as filed.
+- Balance sheet and cash flow come only from half-year filings, and ROCE/ROIC use financial-year figures only.
+- Trade is by financial year and HS 2-digit only, so the current year in progress is not shown. Import share is a trade-mix measure, not import dependence of consumption, because production values are not in the data.
+- Core-8, JPC, CEA, coal and fertiliser ministry data are not ingested (see the status table above). IIP sub-indices are used as production proxies.
+- OBICUS is aggregate manufacturing only, with no sector split.
+- Global: WTO and EIA need free API keys, which have not been added; IMF DataMapper is blocked (403).
+
 ## Next sprints (from the spec)
 
-1. Industry economics and capacity intelligence (`industry_capacity`, `industry_trade`).
-2. Company financials and segments (`company_financials`, `company_segments`), which feed reported data in the Valuation Lab.
-3. Historical prediction measurement (`historical_snapshots`) and source licensing (`source_licensing`).
-4. Commercial launch: authentication, server-side customer isolation, backups.
+1. (Done in Sprint 2: trade, production, capacity and company financials; see above.)
+2. Historical prediction measurement (`historical_snapshots`) and source licensing (`source_licensing`).
+3. Commercial launch: authentication, server-side customer isolation, backups.
