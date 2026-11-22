@@ -16,14 +16,26 @@ ALLOW = ["not a recommendation to buy, sell or hold any security", "Not a recomm
          "with recommendation language", "recommendation language", "recommendation-word", "Recommendation-language", "recommendation words"]
 
 
+FUND_NAME = re.compile(r"(?:\b[A-Z][\w.&'()-]* +)*\bOpportunit\w*(?: +(?:[A-Z][\w.&'()-]*|-|&|of|and))*? +"
+                       r"(?:Fund|Funds|AIF|Scheme|Trust|LLP|Ltd\.?|Limited|PLC|Portfolio|Master|Plan|Series|LP|SICAV|Pte)\b")
+
+
+VEHICLE = re.compile(r"\b(?:Fund|Funds|AIF|Aif|Scheme|Trust|LLP|Llp|Ltd|Limited|PLC|Plc|SICAV|Sicav|Master)\b")
+
+
 def scan(text):
     for a in ALLOW:
         text = text.replace(a, " ")
     # proper names of disclosed funds (e.g. "XYZ Opportunities Fund", "PI Opportunities AIF") are data, not our wording
     text = re.sub(r"\bself_\w+", " ", text)
     text = re.sub(r"\bOPPORTUNIT[A-Z]*\b", " ", text)  # all-caps = holder name exactly as filed with the exchange
-    text = re.sub(r"(?:\b[A-Z][\w.&'-]*[ \t]+)+Opportunit\w*|\bOpportunit\w*(?:[ \t]+[A-Z][\w.&'-]*)+", " ", text)  # Title-Case fund names
-    text = re.sub(r"opportunit\w*[\s_]+(master[\s_]+)?(fund|aif|scheme)", " ", text, flags=re.I)
+    # Title-Case fund names are exempt ONLY when the phrase ends in a fund/vehicle word ("Hem Growth Opportunities Fund", "PI Opportunities AIF II").
+    # Any other Title-Case use ("Opportunity Radar", "Sector Opportunities") is our own wording and is flagged.
+    text = FUND_NAME.sub(" ", text)
+    # a table cell (tab-separated rendered data) that names a fund vehicle anywhere ("Schroder ... Fund Asian Opportunities") is a filed name
+    text = "\n".join("\t".join(" " if (VEHICLE.search(c) and re.search(r"\bOpportunit", c)) else c for c in ln.split("\t")) if "\t" in ln else ln
+                     for ln in text.split("\n"))
+    text = re.sub(r"opportunit\w*[ _]+(master[ _]+)?(fund|aif|scheme)", " ", text, flags=re.I)
     text = re.sub(r'"(Investment Attractiveness|Opportunity Radar|Industry opportunity|Company quality|Investor quality)" is renamed', " ", text, flags=re.I)
     return sorted({m.group(0).lower() for w in WORDS for m in re.finditer(w, text, re.I)})
 
